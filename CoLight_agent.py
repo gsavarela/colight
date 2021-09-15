@@ -1,12 +1,12 @@
-import numpy as np 
-import os 
-import pickle  
+import numpy as np
+import os
+import pickle
 from agent import Agent
-import random 
+import random
 import time
 """
 Model for CoLight in paper "CoLight: Learning Network-level Cooperation for Traffic Signal
-Control", in submission. 
+Control", in submission.
 """
 import keras
 from keras import backend as K
@@ -46,12 +46,12 @@ class RepeatVector3D(Layer):
         base_config = super(RepeatVector3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-class CoLightAgent(Agent): 
-    def __init__(self, 
-        dic_agent_conf=None, 
-        dic_traffic_env_conf=None, 
-        dic_path=None, 
-        cnt_round=None, 
+class CoLightAgent(Agent):
+    def __init__(self,
+        dic_agent_conf=None,
+        dic_traffic_env_conf=None,
+        dic_path=None,
+        cnt_round=None,
         best_round=None, bar_round=None,intersection_id="0"):
         """
         #1. compute the (dynamic) static Adjacency matrix, compute for each state
@@ -64,7 +64,7 @@ class CoLightAgent(Agent):
 
         self.att_regulatization=dic_agent_conf['att_regularization']
         self.CNN_layers=dic_agent_conf['CNN_layers']
-        
+
         #TODO: n_agents should pass as parameter
         self.num_agents=dic_traffic_env_conf['NUM_INTERSECTIONS']
         self.num_neighbors=min(dic_traffic_env_conf['TOP_K_ADJACENCY'],self.num_agents)

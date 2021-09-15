@@ -11,7 +11,7 @@ import matplotlib
 
 from script import get_traffic_volume
 
-multi_process = True
+multi_process = False
 TOP_K_ADJACENCY=-1
 TOP_K_ADJACENCY_LANE=-1
 PRETRAIN=False
@@ -60,7 +60,7 @@ def parse_args():
     parser.add_argument("--gen",type=int, default=4)#4
 
     parser.add_argument("-all", action="store_true", default=False)
-    parser.add_argument("--workers",type=int, default=7)
+    parser.add_argument("--workers",type=int, default=1)
     parser.add_argument("--onemodel",type=bool, default=False)
 
     parser.add_argument("--visible_gpu", type=str, default="-1")
