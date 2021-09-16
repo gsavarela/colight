@@ -139,7 +139,7 @@ def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers
     NUM_COL = int(road_net.split('_')[0])
     NUM_ROW = int(road_net.split('_')[1])
     num_intersections = NUM_ROW * NUM_COL
-    print('num_intersections:',num_intersections)
+    print('num_intersections:', num_intersections)
 
     ENVIRONMENT = ["sumo", "anon"][env]
 
@@ -156,7 +156,7 @@ def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers
 
     process_list = []
     n_workers = workers     #len(traffic_file_list)
-    multi_process = True
+    multi_process = False
 
     global PRETRAIN
     global NUM_ROUNDS
@@ -364,6 +364,8 @@ def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers
             template="Jinan"
         elif volume=='hangzhou':
             template='Hangzhou'
+        elif volume=='lisbon':
+            template='Lisbon'
         elif volume=='newyork':
             template='NewYork'
         elif volume=='chacha':
@@ -487,7 +489,6 @@ def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers
 
 if __name__ == "__main__":
     args = parse_args()
-    import ipdb; ipdb.set_trace()
     #memo = "multi_phase/optimal_search_new/new_headway_anon"
 
     os.environ["CUDA_VISIBLE_DEVICES"] = args.visible_gpu

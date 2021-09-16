@@ -1,1 +1,8 @@
 .idea/*
+model/*
+records/*
+temp.tensorboard/*
+examples.log
+config.tar.gz
+
+
