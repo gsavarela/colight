@@ -66,6 +66,7 @@ def parse_args():
     parser.add_argument("--visible_gpu", type=str, default="-1")
     global ANON_PHASE_REPRE
     tt=parser.parse_args()
+    # FIXME: This should be read from the roadnet
     if 'CoLight_Signal' in tt.mod:
         #12dim
         ANON_PHASE_REPRE={
@@ -77,11 +78,16 @@ def parse_args():
         }
     else:
         #12dim
+        # ANON_PHASE_REPRE={
+        #     1: [0, 1, 0, 1, 0, 0, 0, 0],
+        #     2: [0, 0, 0, 0, 0, 1, 0, 1],
+        #     3: [1, 0, 1, 0, 0, 0, 0, 0],
+        #     4: [0, 0, 0, 0, 1, 0, 1, 0]
+        # }
+
         ANON_PHASE_REPRE={
-            1: [0, 1, 0, 1, 0, 0, 0, 0],
-            2: [0, 0, 0, 0, 0, 1, 0, 1],
-            3: [1, 0, 1, 0, 0, 0, 0, 0],
-            4: [0, 0, 0, 0, 1, 0, 1, 0]
+            1: [0, 0, 1, 1, 1, 1, 0, 0],
+            2: [1, 1, 0, 0, 0, 0, 0, 1]
         }
     print('agent_name:%s', tt.mod)
     print('ANON_PHASE_REPRE:', ANON_PHASE_REPRE)
@@ -311,7 +317,6 @@ def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers
                 "sum_num_vehicle_been_stopped_thres1": -0.25,
                 "pressure": 0  # -0.25
             },
-
             "LANE_NUM": {
                 "LEFT": 1,
                 "RIGHT": 1,

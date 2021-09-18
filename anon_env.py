@@ -155,6 +155,7 @@ class Intersection:
         self.inter_id = inter_id
 
         self.inter_name = "intersection_{0}_{1}".format(inter_id[0], inter_id[1])
+        self.dic_traffic_env_conf = dic_traffic_env_conf # TODO: Remove me
 
         self.eng = eng
 
@@ -169,14 +170,28 @@ class Intersection:
         # self.dic_entering_approach_to_edge = {
         #    approach: "road{0}_{1}_{2}".format(self.dic_approach_to_node[approach], light_id) for approach in self.list_approachs}
 
-        self.dic_entering_approach_to_edge = {"W": "road_{0}_{1}_0".format(inter_id[0] - 1, inter_id[1])}
-        self.dic_entering_approach_to_edge.update({"E": "road_{0}_{1}_2".format(inter_id[0] + 1, inter_id[1])})
-        self.dic_entering_approach_to_edge.update({"S": "road_{0}_{1}_1".format(inter_id[0], inter_id[1] - 1)})
-        self.dic_entering_approach_to_edge.update({"N": "road_{0}_{1}_3".format(inter_id[0], inter_id[1] + 1)})
+        # FIXME: 'incomplete' roadmaps: defines only existing approaches 
+        self.dic_entering_approach_to_edge = {}
+        roadlinks_incoming = light_id_dict['roadlinks_incoming']
 
-        self.dic_exiting_approach_to_edge = {
-            approach: "road_{0}_{1}_{2}".format(inter_id[0], inter_id[1], self.dic_approach_to_node[approach]) for
-        approach in self.list_approachs}
+        roadlink = "road_{0}_{1}_0".format(inter_id[0] - 1, inter_id[1]) # WEST: roadlink
+        if roadlink in roadlinks_incoming: self.dic_entering_approach_to_edge["W"] = roadlink
+        roadlink = "road_{0}_{1}_2".format(inter_id[0] + 1, inter_id[1]) # EAST: roadlink
+        if roadlink in roadlinks_incoming: self.dic_entering_approach_to_edge["E"] = roadlink
+        roadlink = "road_{0}_{1}_1".format(inter_id[0], inter_id[1] - 1) # SOUTH: roadlink
+        if roadlink in roadlinks_incoming: self.dic_entering_approach_to_edge["S"] = roadlink
+        roadlink = "road_{0}_{1}_3".format(inter_id[0], inter_id[1] + 1) # NORTH: roadlink
+        if roadlink in roadlinks_incoming: self.dic_entering_approach_to_edge["N"] = roadlink
+
+        # self.dic_exiting_approach_to_edge = {
+        #     approach: "road_{0}_{1}_{2}".format(inter_id[0], inter_id[1], self.dic_approach_to_node[approach]) for
+        # approach in self.list_approachs}
+        # FIXME: 'incomplete' roadmaps: defines only existing approaches 
+        roadlinks_outgoing = light_id_dict['roadlinks_outgoing']
+        self.dic_exiting_approach_to_edge = {k:roadlink
+            for k, v in self.dic_approach_to_node.items()
+            for roadlink in roadlinks_outgoing if v == int(roadlink[-1])}
+
         self.dic_entering_approach_lanes = {"W": [0], "E": [0], "S": [0], "N": [0]}
         self.dic_exiting_approach_lanes = {"W": [0], "E": [0], "S": [0], "N": [0]}
 
@@ -190,16 +205,28 @@ class Intersection:
 
 
         # generate all lanes
+        # TODO: DEFINE LANE_NUM
+        # self.list_entering_lanes = []
+        # for approach in self.list_approachs:
+        #     self.list_entering_lanes += [self.dic_entering_approach_to_edge[approach] + '_' + str(i) for i in
+        #                                  range(sum(list(dic_traffic_env_conf["LANE_NUM"].values())))]
         self.list_entering_lanes = []
-        for approach in self.list_approachs:
-            self.list_entering_lanes += [self.dic_entering_approach_to_edge[approach] + '_' + str(i) for i in
-                                         range(sum(list(dic_traffic_env_conf["LANE_NUM"].values())))]
+        for roadlink in self.dic_entering_approach_to_edge.values():
+            num_lanes = light_id_dict['roadlinks_num_lanes'][roadlink]
+            self.list_entering_lanes += [f'{roadlink}_{i}' for i in range(num_lanes)]
+
         self.list_exiting_lanes = []
-        for approach in self.list_approachs:
-            self.list_exiting_lanes += [self.dic_exiting_approach_to_edge[approach] + '_' + str(i) for i in
-                                        range(sum(list(dic_traffic_env_conf["LANE_NUM"].values())))]
+        # for approach in self.list_approachs:
+        #     self.list_exiting_lanes += [self.dic_exiting_approach_to_edge[approach] + '_' + str(i) for i in
+        #                                 range(sum(list(dic_traffic_env_conf["LANE_NUM"].values())))]
+
+        self.list_exiting_lanes = []
+        for roadlink in self.dic_exiting_approach_to_edge.values():
+            num_lanes = light_id_dict['roadlinks_num_lanes'][roadlink]
+            self.list_exiting_lanes += [f'{roadlink}_{i}' for i in range(num_lanes)]
 
         self.list_lanes = self.list_entering_lanes + self.list_exiting_lanes
+
 
         self.adjacency_row = light_id_dict['adjacency_row']
         self.neighbor_ENWS = light_id_dict['neighbor_ENWS']
@@ -816,7 +843,6 @@ class AnonEnv:
         # self.load_roadnet()
         # self.load_flow()
 
-
         # get adjacency
         if self.dic_traffic_env_conf["USE_LANE_ADJACENCY"]:
             self.traffic_light_node_dict = self._adjacency_extraction_lane()
@@ -1353,7 +1379,11 @@ class AnonEnv:
                                                             "entering_lane_ENWS": None,
                                                             "total_lane_num": None, 'adjacency_matrix_lane': None,
                                                             "lane_id_to_index": None,
-                                                            "lane_ids_in_intersction": []
+                                                            "lane_ids_in_intersction": [],
+                                                            # FIXME: 'incomplete' definition
+                                                            'roadlinks_incoming': [],
+                                                            'roadlinks_outgoing': [],
+                                                            'roadlinks_num_lanes': {},
                                                             }
 
             top_k = self.dic_traffic_env_conf["TOP_K_ADJACENCY"]
@@ -1378,13 +1408,16 @@ class AnonEnv:
                 index += 1
 
             # set the neighbor_ENWS nodes and entring_lane_ENWS for intersections
+            # iterates across intersections.
             for i in traffic_light_node_dict.keys():
                 traffic_light_node_dict[i]['inter_id_to_index'] = inter_id_to_index
                 traffic_light_node_dict[i]['neighbor_ENWS'] = []
                 traffic_light_node_dict[i]['entering_lane_ENWS'] = {"lane_ids": [], "lane_length": []}
                 for j in range(4):
                     road_id = i.replace("intersection", "road")+"_"+str(j)
-                    neighboring_node = edge_id_dict[road_id]['to']
+                    # if road_id in edge_id_dict:
+                    # FIXME: 'incomplete' roadnets 
+                    neighboring_node = edge_id_dict[road_id]['to'] if road_id in edge_id_dict else None
                     # calculate the neighboring intersections
                     if neighboring_node not in traffic_light_node_dict.keys(): # virtual node
                         traffic_light_node_dict[i]['neighbor_ENWS'].append(None)
@@ -1401,6 +1434,16 @@ class AnonEnv:
 
                             traffic_light_node_dict[i]['entering_lane_ENWS']['lane_ids'].append(neighboring_lanes)
                             traffic_light_node_dict[i]['entering_lane_ENWS']['lane_length'].append(value['length'])
+
+                # FIXME: 'incomplete' roadnets 
+                traffic_light_node_dict[i]['roadlinks_incoming'] = \
+                    [roadlink for roadlink, roaddata in edge_id_dict.items() if roaddata['to'] == i]
+                traffic_light_node_dict[i]['roadlinks_outgoing'] = \
+                    [roadlink for roadlink, roaddata in edge_id_dict.items() if roaddata['from'] == i]
+                roadlinks = traffic_light_node_dict[i]['roadlinks_incoming'] + traffic_light_node_dict[i]['roadlinks_outgoing']
+                traffic_light_node_dict[i]['roadlinks_num_lanes'] = \
+                    {roadlink: edge_id_dict[roadlink]['num_of_lane'] for roadlink in roadlinks}
+
 
 
             lane_id_dict = roadnet.net_lane_dict
