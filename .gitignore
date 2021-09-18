@@ -4,5 +4,6 @@ records/*
 temp.tensorboard/*
 examples.log
 config.tar.gz
+*.swp
 
 
