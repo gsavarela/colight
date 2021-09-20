@@ -487,7 +487,6 @@ def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers
 
 if __name__ == "__main__":
     args = parse_args()
-    import ipdb; ipdb.set_trace()
     #memo = "multi_phase/optimal_search_new/new_headway_anon"
 
     os.environ["CUDA_VISIBLE_DEVICES"] = args.visible_gpu

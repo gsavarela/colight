@@ -40,7 +40,6 @@ class RepeatVector3D(Layer):
 
         return K.tile(K.expand_dims(inputs,1),[1,self.times,1,1])
 
-
     def get_config(self):
         config = {'times': self.times}
         base_config = super(RepeatVector3D, self).get_config()
@@ -52,12 +51,15 @@ class CoLightAgent(Agent):
         dic_traffic_env_conf=None,
         dic_path=None,
         cnt_round=None,
-        best_round=None, bar_round=None,intersection_id="0"):
+        best_round=None,
+        bar_round=None,
+        intersection=None,
+        intersection_id="0"):
         """
-        #1. compute the (dynamic) static Adjacency matrix, compute for each state
-        -2. #neighbors: 5 (1 itself + W,E,S,N directions)
-        -3. compute len_features
-        -4. self.num_actions
+        1. compute the (dynamic) static Adjacency matrix, compute for each state
+        2. #neighbors: 5 (1 itself + W,E,S,N directions)
+        3. compute len_features
+        4. self.num_actions
         """
         super(CoLightAgent, self).__init__(
             dic_agent_conf, dic_traffic_env_conf, dic_path,intersection_id)
@@ -68,10 +70,13 @@ class CoLightAgent(Agent):
         #TODO: n_agents should pass as parameter
         self.num_agents=dic_traffic_env_conf['NUM_INTERSECTIONS']
         self.num_neighbors=min(dic_traffic_env_conf['TOP_K_ADJACENCY'],self.num_agents)
+        self.intersection=intersection
         self.vec=np.zeros((1,self.num_neighbors))
         self.vec[0][0]=1
 
-        self.num_actions = len(self.dic_traffic_env_conf["PHASE"][self.dic_traffic_env_conf['SIMULATOR_TYPE']])
+        # FIXME: Custom light phases
+        # self.num_actions = len(self.dic_traffic_env_conf["PHASE"][self.dic_traffic_env_conf['SIMULATOR_TYPE']])
+        self.num_actions = len(self.intersection.list_phases)
         self.num_lanes = np.sum(np.array(list(self.dic_traffic_env_conf["LANE_NUM"].values())))
         self.len_feature=self.compute_len_feature()
         self.memory = self.build_memory()
@@ -148,18 +153,26 @@ class CoLightAgent(Agent):
 
 
     def compute_len_feature(self):
-        from functools import reduce
-        len_feature=tuple()
+        feature_num = 0
+        feature_dict = self.dic_traffic_env_conf["DIC_FEATURE_DIM"]
+
         for feature_name in self.dic_traffic_env_conf["LIST_STATE_FEATURE"]:
             if "adjacency" in feature_name:
                 continue
             elif "phase" in feature_name:
-                len_feature += self.dic_traffic_env_conf["DIC_FEATURE_DIM"]["D_"+feature_name.upper()]
+                # FIXME: 'True' phase
+                # len_feature += feature_dict["D_"+feature_name.upper()]
+                feature_num += len(self.intersection.list_phases[1])
             elif feature_name=="lane_num_vehicle":
-                # FIXME: Lisbon/1_1 only 6 incoming roadlinks
-                len_feature += (6,)
-                # len_feature += (self.dic_traffic_env_conf["DIC_FEATURE_DIM"]["D_"+feature_name.upper()][0]*self.num_lanes,)
-        return sum(len_feature)
+                # FIXME: Hardcode: Lisbon/1_1 only 6 incoming roadlinks
+                # len_feature += (6,)
+
+                # FIXME: Roadnet settings:
+                lane_num_vehicle = feature_dict["D_"+feature_name.upper()][0]*self.num_lanes
+                feature_num += len(self.intersection.list_entering_lanes)
+
+                assert len(self.intersection.list_entering_lanes) == lane_num_vehicle
+        return feature_num
 
     """
     components of the network
@@ -278,8 +291,13 @@ class CoLightAgent(Agent):
                         if feature_name == "cur_phase":
                             if len(state[i][j][feature_name])==1:
                                 #choose_action
-                                observation.extend(self.dic_traffic_env_conf['PHASE'][self.dic_traffic_env_conf['SIMULATOR_TYPE']]
-                                                            [state[i][j][feature_name][0]])
+                                # FIXME: Custom phases
+                                # observation.extend(self.dic_traffic_env_conf['PHASE'][self.dic_traffic_env_conf['SIMULATOR_TYPE']][state[i][j][feature_name][0]])
+                                phase_index = state[i][j][feature_name][0]
+                                phases = self.intersection.list_phases
+                                assert len(phases[phase_index]) == 12
+
+                                observation.extend(phases[state[i][j][feature_name][0]])
                             else:
                                 observation.extend(state[i][j][feature_name])
                         elif feature_name=="lane_num_vehicle":
@@ -329,7 +347,6 @@ class CoLightAgent(Agent):
 
     def prepare_Xs_Y(self, memory, dic_exp_conf):
         """
-        
         """
         ind_end = len(memory)
         print("memory size before forget: {0}".format(ind_end))

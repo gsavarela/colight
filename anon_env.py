@@ -26,6 +26,7 @@ class RoadNet:
         self.generate_node_dict()
         self.generate_edge_dict()
         self.generate_lane_dict()
+        self.generate_light_phases_dict()
 
     def generate_node_dict(self):
         '''
@@ -124,6 +125,73 @@ class RoadNet:
 
         self.net_lane_dict = lane_dict
 
+    def generate_light_phases_dict(self):
+        """ Builds phase plans
+
+            Phase plan 2:   1. go_straight 0-2 + turn_right 1-3
+                            2. go_straight 1-3 + turn_right 0-2
+
+            Phase plan 4:   1. go_straight 0-2 + turn_right 1-3
+                            2. turn_left 0-2
+                            3. go_straight 1-3 + turn_right 0-2
+                            4. turn_left 1-3
+        """
+        self.light_phases_dict = {}
+        for node_dict in self.roadnet_dict['intersections']:
+            if not node_dict['virtual']:
+                light_phase_id = node_dict['id']
+                # for road_link in node_dict["roadLinks"]:
+                roadlinks = node_dict["roadLinks"]
+                self.light_phases_dict[light_phase_id] = {
+                'phase_plan_2':
+                {
+                     1: self._generate_light_phase_plan_2(roadlinks, 1),
+                     2: self._generate_light_phase_plan_2(roadlinks, 2)
+                },
+                'phase_plan_4': {
+                     1: self._generate_light_phase_plan_4(roadlinks, 1),
+                     2: self._generate_light_phase_plan_4(roadlinks, 2),
+                     3: self._generate_light_phase_plan_4(roadlinks, 3),
+                     4: self._generate_light_phase_plan_4(roadlinks, 4)
+                    }
+                }
+
+
+    def _generate_light_phase_plan_2(self, roadlinks, index):
+        if index == 1:
+            return [
+                int((roadlink['type'] in ('go_straight',) and roadlink['direction'] in (0,2)) or \
+                    (roadlink['type'] in ('turn_right',) and roadlink['direction'] in (1,3)))
+                for roadlink in roadlinks
+            ]
+
+        if index == 2:
+            return [
+                int((roadlink['type'] in ('go_straight',) and roadlink['direction'] in (1,3)) or \
+                    (roadlink['type'] in ('turn_right',) and roadlink['direction'] in (0,2)))
+                for roadlink in roadlinks
+            ]
+
+        raise ValueError
+
+    def _generate_light_phase_plan_4(self, roadlinks, index):
+        if index == 1:
+            return self._generate_light_phase_plan_2(roadlinks, 1)
+        if index == 2:
+            return [
+                int(roadlink['type'] in ('turn_left',) and roadlink['direction'] in (0,2))
+                for roadlink in roadlinks
+            ]
+        if index == 3:
+            return self._generate_light_phase_plan_2(roadlinks, 2)
+
+        if index == 4:
+            return [
+                int(roadlink['type'] in ('turn_left',) and roadlink['direction'] in (1,3))
+                for roadlink in roadlinks
+            ]
+        raise ValueError
+
     def hasEdge(self, edge_id):
         if edge_id in self.net_edge_dict.keys():
             return True
@@ -201,7 +269,6 @@ class Intersection:
         self.length_grid = 5
         self.num_grid = int(self.length_lane // self.length_grid)
 
-        self.list_phases = dic_traffic_env_conf["PHASE"][dic_traffic_env_conf['SIMULATOR_TYPE']]
 
 
         # generate all lanes
@@ -226,6 +293,10 @@ class Intersection:
             self.list_exiting_lanes += [f'{roadlink}_{i}' for i in range(num_lanes)]
 
         self.list_lanes = self.list_entering_lanes + self.list_exiting_lanes
+
+        # FIXME: Build phases
+        # self.list_phases = dic_traffic_env_conf["PHASE"][dic_traffic_env_conf['SIMULATOR_TYPE']]
+        self.list_phases = light_id_dict['light_phases']['phase_plan_2']
 
 
         self.adjacency_row = light_id_dict['adjacency_row']
@@ -292,6 +363,7 @@ class Intersection:
 
         self.dic_feature = {}  # this second
         self.dic_feature_previous_step = {}  # this second
+
 
     def build_adjacency_row_lane(self, lane_id_to_global_index_dict):
         self.adjacency_row_lanes = [] # order is the entering lane order, each element is list of two lists
@@ -732,7 +804,7 @@ class Intersection:
                 lane_vector[pos_grid] = 1
             list_lane_vector.append(lane_vector)
         return np.array(list_lane_vector)
-    
+
     # debug
     def _get_vehicle_info(self, veh_id):
         try:
@@ -1384,6 +1456,7 @@ class AnonEnv:
                                                             'roadlinks_incoming': [],
                                                             'roadlinks_outgoing': [],
                                                             'roadlinks_num_lanes': {},
+                                                            'light_phases': {}
                                                             }
 
             top_k = self.dic_traffic_env_conf["TOP_K_ADJACENCY"]
@@ -1496,6 +1569,7 @@ class AnonEnv:
                 traffic_light_node_dict[i]['total_inter_num'] = total_inter_num
                 traffic_light_node_dict[i]['total_lane_num'] = total_lane_num
                 traffic_light_node_dict[i]['adjacency_matrix_lane'] = adjacency_matrix_lane
+                traffic_light_node_dict[i]['light_phases'].update(roadnet.light_phases_dict[i])
 
 
 

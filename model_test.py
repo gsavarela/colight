@@ -84,7 +84,7 @@ def test(model_dir, cnt_round, run_cnt, _dic_traffic_env_conf, if_gui):
                     dic_traffic_env_conf=dic_traffic_env_conf,
                     dic_path=dic_path,
                     cnt_round=1,  # useless
-                    inter_info=env.list_intersection,
+                    intersection=env.list_intersection,
                     intersection_id=str(i)
                 )
             else:

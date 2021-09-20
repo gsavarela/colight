@@ -29,6 +29,16 @@ class Generator:
                               path_to_work_directory = self.dic_path["PATH_TO_WORK_DIRECTORY"],
                               dic_traffic_env_conf = self.dic_traffic_env_conf)        
         self.env.reset()
+        if 'traffic_light_phases' not in self.dic_traffic_env_conf:
+            self.dic_traffic_env_conf['traffic_light_phases'] = []
+            self.dic_traffic_env_conf['traffic_light_sensors'] = []
+            for intersec in self.env.list_intersection:
+                self.dic_traffic_env_conf['traffic_light_phases'].append(
+                    intersec.list_phases
+                )
+                self.dic_traffic_env_conf['traffic_light_sensors'].append(
+                    len(intersec.list_entering_lanes)
+                )
 
         # every generator's output
         # generator for pretraining
@@ -50,24 +60,27 @@ class Generator:
 
             for i in range(dic_traffic_env_conf['NUM_AGENTS']):
                 agent_name = self.dic_exp_conf["MODEL_NAME"]
+                # FIXME: 'True' phase
+                intersec = self.env.list_intersection[i]
                 #the CoLight_Signal needs to know the lane adj in advance, from environment's intersection list
                 if agent_name=='CoLight_Signal':
                     agent = DIC_AGENTS[agent_name](
                         dic_agent_conf=self.dic_agent_conf,
                         dic_traffic_env_conf=self.dic_traffic_env_conf,
                         dic_path=self.dic_path,
-                        cnt_round=self.cnt_round, 
+                        cnt_round=self.cnt_round,
                         best_round=best_round,
-                        inter_info=self.env.list_intersection,
+                        intersection=intersec,
                         intersection_id=str(i)
-                    )      
-                else:              
+                    )
+                else:
                     agent = DIC_AGENTS[agent_name](
                         dic_agent_conf=self.dic_agent_conf,
                         dic_traffic_env_conf=self.dic_traffic_env_conf,
                         dic_path=self.dic_path,
-                        cnt_round=self.cnt_round, 
+                        cnt_round=self.cnt_round,
                         best_round=best_round,
+                        intersection=intersec,
                         intersection_id=str(i)
                     )
                 self.agents[i] = agent

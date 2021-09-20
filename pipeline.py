@@ -421,6 +421,7 @@ class Pipeline:
             if not os.path.exists(train_round):
                 os.makedirs(train_round)
 
+
             cs = ConstructSample(path_to_samples=train_round, cnt_round=cnt_round,
                                  dic_traffic_env_conf=self.dic_traffic_env_conf)
             cs.make_reward_for_system()

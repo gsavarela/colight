@@ -30,21 +30,21 @@ class Updater:
         env_tmp = DIC_ENVS[dic_traffic_env_conf["SIMULATOR_TYPE"]](
                               path_to_log = self.path_to_log,
                               path_to_work_directory = self.dic_path["PATH_TO_WORK_DIRECTORY"],
-                              dic_traffic_env_conf = self.dic_traffic_env_conf)        
+                              dic_traffic_env_conf = self.dic_traffic_env_conf)
         env_tmp.reset()
 
         for i in range(dic_traffic_env_conf['NUM_AGENTS']):
             agent_name = self.dic_exp_conf["MODEL_NAME"]
+            intersec = env_tmp.list_intersection[i]
             if agent_name=='CoLight_Signal':
                 agent= DIC_AGENTS[agent_name](
                     self.dic_agent_conf, self.dic_traffic_env_conf,
-                    self.dic_path, self.cnt_round, 
-                    inter_info=env_tmp.list_intersection,
+                    self.dic_path, self.cnt_round,
                     intersection_id=str(i))
             else:
                 agent= DIC_AGENTS[agent_name](
                     self.dic_agent_conf, self.dic_traffic_env_conf,
-                    self.dic_path, self.cnt_round, intersection_id=str(i))
+                    self.dic_path, self.cnt_round, intersection=intersec, intersection_id=str(i))
             self.agents.append(agent)
 
     def load_sample(self, i):

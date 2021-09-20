@@ -5,5 +5,7 @@ temp.tensorboard/*
 examples.log
 config.tar.gz
 *.swp
+*.swo
+__pycache__/
 
 

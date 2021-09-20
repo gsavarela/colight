@@ -84,13 +84,16 @@ class ConstructSample:
         '''
 
         state = self.logging_data_list_per_gen[i][time]
+        traffic_light_phases = self.dic_traffic_env_conf['traffic_light_phases'][i]
         assert time == state["time"]
         if self.dic_traffic_env_conf["BINARY_PHASE_EXPANSION"]:
             state_after_selection = {}
             for key, value in state["state"].items():
                 if key in features:
                     if "cur_phase" in key:
-                        state_after_selection[key] = self.dic_traffic_env_conf['PHASE'][self.dic_traffic_env_conf['SIMULATOR_TYPE']][value[0]]
+                        # FIXME: 'True' phase
+                        # state_after_selection[key] = self.dic_traffic_env_conf['PHASE'][self.dic_traffic_env_conf['SIMULATOR_TYPE']][value[0]]
+                        state_after_selection[key] = traffic_light_phases[value[0]]
                     else:
                         state_after_selection[key] = value
         else:
