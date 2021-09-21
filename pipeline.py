@@ -82,17 +82,6 @@ class Pipeline:
         json.dump(self.dic_traffic_env_conf,
                   open(os.path.join(path, "traffic_env.conf"), "w"), indent=4)
 
-    def _copy_sumo_file(self, path=None):
-        if path == None:
-            path = self.dic_path["PATH_TO_WORK_DIRECTORY"]
-        # copy sumo files
-        for file_name in self._LIST_SUMO_FILES:
-            shutil.copy(os.path.join(self.dic_path["PATH_TO_DATA"], file_name),
-                        os.path.join(path, file_name))
-        for file_name in self.dic_exp_conf["TRAFFIC_FILE"]:
-            shutil.copy(os.path.join(self.dic_path["PATH_TO_DATA"], file_name),
-                        os.path.join(path, file_name))
-
     def _copy_anon_file(self, path=None):
         # hard code !!!
         if path == None:
@@ -123,11 +112,7 @@ class Pipeline:
         # do file operations
         self._path_check()
         self._copy_conf_file()
-        if self.dic_traffic_env_conf["SIMULATOR_TYPE"] == 'sumo':
-            self._copy_sumo_file()
-            self._modify_sumo_file()
-        elif self.dic_traffic_env_conf["SIMULATOR_TYPE"] == 'anon':
-            self._copy_anon_file()
+        self._copy_anon_file()
         # test_duration
         self.test_duration = []
 

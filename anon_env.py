@@ -24,7 +24,6 @@ class AnonEnv:
         self.path_to_log = path_to_log
         self.path_to_work_directory = path_to_work_directory
         self.dic_traffic_env_conf = dic_traffic_env_conf
-        self.simulator_type = self.dic_traffic_env_conf["SIMULATOR_TYPE"]
 
         self.list_intersection = None
         self.list_inter_log = None
@@ -811,7 +810,6 @@ if __name__ == '__main__':
 
         "NEIGHBOR": False,
         "MODEL_NAME": "STGAT",
-        "SIMULATOR_TYPE": "anon",
         "TOP_K_ADJACENCY":9,
         "TOP_K_ADJACENCY_LANE": 6,
 

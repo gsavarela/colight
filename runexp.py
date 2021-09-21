@@ -11,7 +11,7 @@ import matplotlib
 
 from script import get_traffic_volume
 
-multi_process = True
+multi_process = False
 TOP_K_ADJACENCY=-1
 TOP_K_ADJACENCY_LANE=-1
 PRETRAIN=False
@@ -27,7 +27,6 @@ def parse_args():
     parser = argparse.ArgumentParser()
     # The file folder to create/log in
     parser.add_argument("--memo", type=str, default='0515_afternoon_Colight_6_6_bi')#1_3,2_2,3_3,4_4
-    parser.add_argument("--env", type=int, default=1) #env=1 means you will run CityFlow
     parser.add_argument("--gui", type=bool, default=False)
     parser.add_argument("--road_net", type=str, default='6_6')#'1_2') # which road net you are going to run
     parser.add_argument("--volume", type=str, default='300')#'300'
@@ -60,12 +59,13 @@ def parse_args():
     parser.add_argument("--gen",type=int, default=4)#4
 
     parser.add_argument("-all", action="store_true", default=False)
-    parser.add_argument("--workers",type=int, default=7)
+    parser.add_argument("--workers",type=int, default=1)
     parser.add_argument("--onemodel",type=bool, default=False)
 
     parser.add_argument("--visible_gpu", type=str, default="-1")
     global ANON_PHASE_REPRE
     tt=parser.parse_args()
+    # FIXME: This should be read from the roadnet
     if 'CoLight_Signal' in tt.mod:
         #12dim
         ANON_PHASE_REPRE={
@@ -83,6 +83,12 @@ def parse_args():
             3: [1, 0, 1, 0, 0, 0, 0, 0],
             4: [0, 0, 0, 0, 1, 0, 1, 0]
         }
+
+        # FIXME: Hardcode: Lisbon 1_1
+        # ANON_PHASE_REPRE={
+        #     1: [0, 0, 1, 1, 1, 1, 0, 0],
+        #     2: [1, 1, 0, 0, 0, 0, 0, 1]
+        # }
     print('agent_name:%s', tt.mod)
     print('ANON_PHASE_REPRE:', ANON_PHASE_REPRE)
 
@@ -132,31 +138,27 @@ def pipeline_wrapper(dic_exp_conf, dic_agent_conf, dic_traffic_env_conf, dic_pat
 
 
 
-def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, onemodel):
+def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, onemodel):
 
     # main(args.memo, args.env, args.road_net, args.gui, args.volume, args.ratio, args.mod, args.cnt, args.gen)
     #Jinan_3_4
     NUM_COL = int(road_net.split('_')[0])
     NUM_ROW = int(road_net.split('_')[1])
     num_intersections = NUM_ROW * NUM_COL
-    print('num_intersections:',num_intersections)
+    print('num_intersections:', num_intersections)
 
-    ENVIRONMENT = ["sumo", "anon"][env]
 
     if r_all:
-        traffic_file_list = [ENVIRONMENT+"_"+road_net+"_%d_%s" %(v,suffix) for v in range(100,400,100)]
+        traffic_file_list = ["anon_"+road_net+"_%d_%s" %(v,suffix) for v in range(100,400,100)]
     else:
-        traffic_file_list=["{0}_{1}_{2}_{3}".format(ENVIRONMENT, road_net, volume, suffix)]
+        traffic_file_list=["anon_{0}_{1}_{2}".format(road_net, volume, suffix)]
 
 
-    if env:
-        traffic_file_list = [i+ ".json" for i in traffic_file_list ]
-    else:
-        traffic_file_list = [i+ ".xml" for i in traffic_file_list ]
+    traffic_file_list = [i+ ".json" for i in traffic_file_list ]
 
     process_list = []
     n_workers = workers     #len(traffic_file_list)
-    multi_process = True
+    multi_process = False
 
     global PRETRAIN
     global NUM_ROUNDS
@@ -216,7 +218,6 @@ def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers
             "TOP_K_ADJACENCY": TOP_K_ADJACENCY,
             "ADJACENCY_BY_CONNECTION_OR_GEO": ADJACENCY_BY_CONNECTION_OR_GEO,
             "TOP_K_ADJACENCY_LANE": TOP_K_ADJACENCY_LANE,
-            "SIMULATOR_TYPE": ENVIRONMENT,
             "BINARY_PHASE_EXPANSION": True,
             "FAST_COMPUTE": True,
 
@@ -311,7 +312,6 @@ def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers
                 "sum_num_vehicle_been_stopped_thres1": -0.25,
                 "pressure": 0  # -0.25
             },
-
             "LANE_NUM": {
                 "LEFT": 1,
                 "RIGHT": 1,
@@ -364,6 +364,8 @@ def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers
             template="Jinan"
         elif volume=='hangzhou':
             template='Hangzhou'
+        elif volume=='lisbon':
+            template='Lisbon'
         elif volume=='newyork':
             template='NewYork'
         elif volume=='chacha':
@@ -491,7 +493,7 @@ if __name__ == "__main__":
 
     os.environ["CUDA_VISIBLE_DEVICES"] = args.visible_gpu
 
-    main(args.memo, args.env, args.road_net, args.gui, args.volume,
+    main(args.memo, args.road_net, args.gui, args.volume,
          args.suffix, args.mod, args.cnt, args.gen, args.all, args.workers,
          args.onemodel)
 
