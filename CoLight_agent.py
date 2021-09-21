@@ -168,10 +168,9 @@ class CoLightAgent(Agent):
                 # len_feature += (6,)
 
                 # FIXME: Roadnet settings:
-                lane_num_vehicle = feature_dict["D_"+feature_name.upper()][0]*self.num_lanes
+                # This assumes that there are always 12 incoming lanes.
+                # lane_num_vehicle = feature_dict["D_"+feature_name.upper()][0]*self.num_lanes
                 feature_num += len(self.intersection.list_entering_lanes)
-
-                assert len(self.intersection.list_entering_lanes) == lane_num_vehicle
         return feature_num
 
     """
@@ -277,6 +276,7 @@ class CoLightAgent(Agent):
     def action_att_predict(self,state,total_features=[],total_adjs=[],bar=False):
         #state:[batch,agent,features and adj]
         #return:act:[batch,agent],att:[batch,layers,agent,head,neighbors]
+
         batch_size=len(state)
         if total_features==[] and total_adjs==[]:
             total_features,total_adjs=list(),list()
@@ -295,19 +295,21 @@ class CoLightAgent(Agent):
                                 # observation.extend(self.dic_traffic_env_conf['PHASE'][self.dic_traffic_env_conf['SIMULATOR_TYPE']][state[i][j][feature_name][0]])
                                 phase_index = state[i][j][feature_name][0]
                                 phases = self.intersection.list_phases
-                                assert len(phases[phase_index]) == 12
+                                # jinan
+                                # assert len(phases[phase_index]) == 12
 
-                                observation.extend(phases[state[i][j][feature_name][0]])
+                                observation.extend(phases[phase_index])
                             else:
                                 observation.extend(state[i][j][feature_name])
                         elif feature_name=="lane_num_vehicle":
                             observation.extend(state[i][j][feature_name])
                     feature.append(observation)
                     adj.append(state[i][j]['adjacency_matrix'])
-                total_features.append(feature)
+                # total_features.append(feature)
+                total_features += feature
                 total_adjs.append(adj)
             #feature:[agents,feature]
-            total_features=np.reshape(np.array(total_features),[batch_size,self.num_agents,-1])
+            total_features = self._feature_padding(total_features, batch_size)
             total_adjs=self.adjacency_index2matrix(np.array(total_adjs))
             #adj:[agent,neighbors]   
         if bar:
@@ -333,11 +335,16 @@ class CoLightAgent(Agent):
         act=np.reshape(act,(batch_size,self.num_agents))
         return act,attention
 
+    def _feature_padding(self, total_features, batch_size):
+        max_length = max(len(feature) for feature in total_features)
+        padded_features = [feature + [0] * (max_length - len(feature))  for feature in total_features]
+        stacked_features = np.vstack(padded_features)
+        return np.reshape(stacked_features,[batch_size,self.num_agents,-1])
 
     def choose_action(self, count, state):
 
-        ''' 
-        choose the best action for current state 
+        '''
+        choose the best action for current state
         -input: state: [batch,agent,feature]  adj: [batch,agent,neighbors,agents]
         -output: out: [batch,agent,action], att:[batch,layers,agent,head,neighbors]
         '''
