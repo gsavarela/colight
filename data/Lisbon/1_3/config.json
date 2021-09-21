@@ -1,11 +1,11 @@
 {
   "interval": 1,
-  "dir": "data/networks/1_3/",
+  "dir": "data/networks/3_1/",
   "seed": 0,
-  "roadnetFile": "roadnet.json",
+  "roadnetFile": "roadnet_3_1.json",
   "roadnetLogFile": "roadnetLog.json",
   "replayLogFile": "replay.txt",
-  "flowFile": "flow.json",
+  "flowFile": "anon_3_1_lisbon_uniform.json",
   "rlTrafficLight": true,
   "saveReplay": false
 }
