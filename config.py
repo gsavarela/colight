@@ -11,7 +11,6 @@ from CoLight_agent import CoLightAgent
 # from gcn_agent import GCNAgent
 from simple_dqn_one_agent import SimpleDQNOneAgent
 from lit_agent import LitAgent
-# from sumo_env import SumoEnv
 from anon_env import AnonEnv
 from baseline.sliding_formula_agent import SlidingFormulaAgent
 
@@ -32,7 +31,7 @@ DIC_SOTL_AGENT_CONF = {
 }
 
 DIC_EXP_CONF = {
-    "RUN_COUNTS": 3600,
+    "RUN_COUNTS": 21600,
     "TRAFFIC_FILE": [
         "cross.2phases_rou01_equal_450.xml"
     ],
@@ -118,9 +117,9 @@ DIC_FORMULA_AGENT_CONF = {
 }
 
 dic_traffic_env_conf = {
-    "ACTION_PATTERN": "set",
+    "ACTION_PATTERN": "switch",
     "NUM_INTERSECTIONS": 1,
-    "MIN_ACTION_TIME": 10,
+    "MIN_ACTION_TIME": 5,
     "YELLOW_TIME": 5,
     "ALL_RED_TIME": 0,
     "NUM_PHASES": 2,

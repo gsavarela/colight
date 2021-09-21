@@ -103,6 +103,7 @@ class Generator:
         step_num = 0
         reset_env_time = time.time() - reset_env_start_time
 
+        import ipdb; ipdb.set_trace()
         running_start_time = time.time()
 
         while not done and step_num < int(self.dic_exp_conf["RUN_COUNTS"]/self.dic_traffic_env_conf["MIN_ACTION_TIME"]):

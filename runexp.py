@@ -211,7 +211,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             "ONE_MODEL": onemodel,
             "NUM_AGENTS": num_intersections,
             "NUM_INTERSECTIONS": num_intersections,
-            "ACTION_PATTERN": "set",
+            "ACTION_PATTERN": "switch",
             "MEASURE_TIME": 10,
             "IF_GUI": gui,
             "DEBUG": False,

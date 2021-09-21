@@ -799,7 +799,7 @@ if __name__ == '__main__':
         "RLTRAFFICLIGHT": True,
         "INTERVAL": 1,
         "NUM_INTERSECTIONS": 9,
-        "ACTION_PATTERN": "set",
+        "ACTION_PATTERN": "switch",
         "MEASURE_TIME": 10,
         "MIN_ACTION_TIME": 10,
         "YELLOW_TIME": 5,
