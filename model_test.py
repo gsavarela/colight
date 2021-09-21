@@ -1,8 +1,10 @@
 import json
 import os
 import pickle
-from config import DIC_AGENTS, DIC_ENVS
 from copy import deepcopy
+
+from anon_env import AnonEnv
+from config import DIC_AGENTS
 
 
 def check_all_workers_working(list_cur_p):
@@ -68,10 +70,11 @@ def test(model_dir, cnt_round, run_cnt, _dic_traffic_env_conf, if_gui):
         path_to_log = os.path.join(dic_path["PATH_TO_WORK_DIRECTORY"], "test_round", model_round)
         if not os.path.exists(path_to_log):
             os.makedirs(path_to_log)
-        env = DIC_ENVS[dic_traffic_env_conf["SIMULATOR_TYPE"]](path_to_log=path_to_log,
-                                                               path_to_work_directory=dic_path[
-                                                                   "PATH_TO_WORK_DIRECTORY"],
-                                                               dic_traffic_env_conf=dic_traffic_env_conf)
+        env = AnonEnv(path_to_log=path_to_log,
+           path_to_work_directory=dic_path[
+               "PATH_TO_WORK_DIRECTORY"],
+           dic_traffic_env_conf=dic_traffic_env_conf
+        )
 
         done = False
         state = env.reset()

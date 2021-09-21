@@ -5,7 +5,8 @@ import random
 import numpy as np
 import pickle
 from math import isnan
-from config import DIC_AGENTS, DIC_ENVS
+from config import DIC_AGENTS
+from anon_env import AnonEnv
 
 validation_set = [
     "synthetic-over-WE254-EW221-NS671-SN747-1893.xml",
@@ -98,10 +99,12 @@ class ModelPool():
                                        "round_{0}".format(cnt_round))
             if not os.path.exists(path_to_log):
                 os.makedirs(path_to_log)
-            env = DIC_ENVS[dic_traffic_env_conf["SIMULATOR_TYPE"]](
-                             path_to_log=path_to_log,
-                             path_to_work_directory=self.dic_path["PATH_TO_WORK_DIRECTORY"],
-                             dic_traffic_env_conf=dic_traffic_env_conf)
+
+            env = AnonEnv(
+                 path_to_log=path_to_log,
+                 path_to_work_directory=self.dic_path["PATH_TO_WORK_DIRECTORY"],
+                 dic_traffic_env_conf=dic_traffic_env_conf
+            )
 
             done = False
             state = env.reset()

@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 import pickle
 import time
 
-from config import DIC_AGENTS, DIC_ENVS
+from config import DIC_AGENTS
 
 def downsample(path_to_log):
 
@@ -153,10 +153,11 @@ class OneLine:
 
 
 
-        self.env = DIC_ENVS[self.dic_traffic_env_conf["SIMULATOR_TYPE"]](
-                           path_to_log = self.dic_path["PATH_TO_WORK_DIRECTORY"],
-                           path_to_work_directory = self.dic_path["PATH_TO_WORK_DIRECTORY"],
-                           dic_traffic_env_conf = self.dic_traffic_env_conf)
+        self.env = AnonEnv(
+           path_to_log = self.dic_path["PATH_TO_WORK_DIRECTORY"],
+           path_to_work_directory = self.dic_path["PATH_TO_WORK_DIRECTORY"],
+           dic_traffic_env_conf = self.dic_traffic_env_conf
+        )
 
 
 

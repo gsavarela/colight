@@ -1,6 +1,5 @@
 import pickle
 import os
-from config import DIC_AGENTS,DIC_ENVS
 import pandas as pd
 import shutil
 import pandas as pd
@@ -10,6 +9,9 @@ import traceback
 import random
 import numpy as np
 
+
+from config import DIC_AGENTS
+from anon_env import AnonEnv
 
 class Updater:
 
@@ -27,10 +29,11 @@ class Updater:
 
         #temporay path_to_log
         self.path_to_log=os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round", "round_0", "generator_0")
-        env_tmp = DIC_ENVS[dic_traffic_env_conf["SIMULATOR_TYPE"]](
-                              path_to_log = self.path_to_log,
-                              path_to_work_directory = self.dic_path["PATH_TO_WORK_DIRECTORY"],
-                              dic_traffic_env_conf = self.dic_traffic_env_conf)
+        env_tmp = AnonEnv(
+          path_to_log = self.path_to_log,
+          path_to_work_directory = self.dic_path["PATH_TO_WORK_DIRECTORY"],
+          dic_traffic_env_conf = self.dic_traffic_env_conf
+        )
         env_tmp.reset()
 
         for i in range(dic_traffic_env_conf['NUM_AGENTS']):

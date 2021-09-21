@@ -471,12 +471,6 @@ DIC_AGENTS = {
     'SlidingFormula': SlidingFormulaAgent
 }
 
-DIC_ENVS = {
-    "sumo": AnonEnv, #deprecated
-    # "sumo": SumoEnv,
-    "anon": AnonEnv
-}
-
 DIC_FIXEDTIMEOFFSET_AGENT_CONF = {
     100: [3, 3],
     200: [3, 3],

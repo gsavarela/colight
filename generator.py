@@ -1,9 +1,11 @@
 import os
 import copy
-from config import DIC_AGENTS, DIC_ENVS
 import time
 import sys
 from multiprocessing import Process, Pool
+
+from anon_env import AnonEnv
+from config import DIC_AGENTS
 
 class Generator:
     def __init__(self, cnt_round, cnt_gen, dic_path, dic_exp_conf, dic_agent_conf, dic_traffic_env_conf, best_round=None):
@@ -22,12 +24,13 @@ class Generator:
         else:
             self.path_to_log = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round", "round_"+str(self.cnt_round), "generator_"+str(self.cnt_gen))
         if not os.path.exists(self.path_to_log):
-            os.makedirs(self.path_to_log)  
+            os.makedirs(self.path_to_log)
 
-        self.env = DIC_ENVS[dic_traffic_env_conf["SIMULATOR_TYPE"]](
-                              path_to_log = self.path_to_log,
-                              path_to_work_directory = self.dic_path["PATH_TO_WORK_DIRECTORY"],
-                              dic_traffic_env_conf = self.dic_traffic_env_conf)        
+        self.env = AnonEnv(
+              path_to_log = self.path_to_log,
+              path_to_work_directory = self.dic_path["PATH_TO_WORK_DIRECTORY"],
+              dic_traffic_env_conf = self.dic_traffic_env_conf
+        )
         self.env.reset()
         if 'traffic_light_phases' not in self.dic_traffic_env_conf:
             self.dic_traffic_env_conf['traffic_light_phases'] = []
