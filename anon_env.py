@@ -6,6 +6,7 @@ import sys
 import os, json
 import pickle
 import time
+from pathlib import Path
 import threading
 from collections import defaultdict
 from multiprocessing import Process, Pool
@@ -290,7 +291,7 @@ class AnonEnv:
     def _update_info_dict(self, actions, states):
         """Gets information dict."""
         self.info_dict['actions'].append({
-            k: v for k, v in zip(self.id_to_index.keys(), actions)
+            k: int(v) for k, v in zip(self.id_to_index.keys(), actions)
         })
         self.info_dict['vehicles'].append(sum(
             len(v) for v in self.system_states['get_lane_vehicles'].values()
@@ -318,7 +319,7 @@ class AnonEnv:
             vehicles = data['lane_num_vehicle']
             action = self.info_dict['actions'][-1][itr.inter_name]
             active_phase = \
-                (itr.previous_phase_index if action == 1 else itr.current_phase_index) - 1
+                int(itr.previous_phase_index if action == 1 else itr.current_phase_index) - 1
             # active phase id, current time.
             ret[itr.inter_name] = (active_phase, itr.current_phase_duration)
 
@@ -397,6 +398,7 @@ class AnonEnv:
                                                     "state": before_action_feature[inter_ind],
                                                     "action": action[inter_ind]})
 
+
     def batch_log(self, start, stop):
         for inter_ind in range(start, stop):
             if int(inter_ind)%100 == 0:
@@ -410,6 +412,10 @@ class AnonEnv:
             f = open(path_to_log_file, "wb")
             pickle.dump(self.list_inter_log[inter_ind], f)
             f.close()
+
+    def info_log(self):
+        info_log_path = Path(self.path_to_log) / 'train_log.json'
+        with info_log_path.open('w') as f: json.dump(self.info_dict, f)
 
     def bulk_log_multi_process(self, batch_size=100):
         assert len(self.list_intersection) == len(self.list_inter_log)
