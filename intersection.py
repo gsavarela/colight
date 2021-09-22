@@ -3,7 +3,6 @@ Intersection object.
 '''
 import os
 
-
 import numpy as np
 import pandas as pd
 
@@ -176,6 +175,7 @@ class Intersection:
 
     # set
     def set_signal(self, action, action_pattern, yellow_time, all_red_time):
+        """Set control signal"""
         if self.all_yellow_flag:
             # in yellow phase
             self.flicker = 0
@@ -196,7 +196,9 @@ class Intersection:
                 if action == 0: # keep the phase
                     self.next_phase_to_set_index = self.current_phase_index
                 elif action == 1: # change to the next phase
-                    self.next_phase_to_set_index = (self.current_phase_index + 1) % len(self.list_phases) # if multi_phase, need more adjustment
+                    # FIXME: Fix phases they go 1-N and not 0-(N-1)
+                    self.next_phase_to_set_index = \
+                    max((self.current_phase_index + 1) % (len(self.list_phases) + 1), 1)
                 else:
                     sys.exit("action not recognized\n action must be 0 or 1")
 
