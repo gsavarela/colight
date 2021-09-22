@@ -119,7 +119,7 @@ DIC_FORMULA_AGENT_CONF = {
 dic_traffic_env_conf = {
     "ACTION_PATTERN": "switch",
     "NUM_INTERSECTIONS": 1,
-    "MIN_ACTION_TIME": 5,
+    "MIN_ACTION_TIME": 10,
     "YELLOW_TIME": 5,
     "ALL_RED_TIME": 0,
     "NUM_PHASES": 2,
