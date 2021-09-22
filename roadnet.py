@@ -1,5 +1,7 @@
 """ Python representation for roadnet urban network """
 import json
+from operator import itemgetter
+from itertools import groupby
 
 class RoadNet:
 
@@ -114,68 +116,139 @@ class RoadNet:
     def generate_light_phases_dict(self):
         """ Builds phase plans
 
-            Phase plan 2:   1. go_straight 0-2 + turn_right 1-3
-                            2. go_straight 1-3 + turn_right 0-2
-
-            Phase plan 4:   1. go_straight 0-2 + turn_right 1-3
-                            2. turn_left 0-2
-                            3. go_straight 1-3 + turn_right 0-2
-                            4. turn_left 1-3
+            WARNING: direction field should not be used as it's always
+        0. Setting on the cityflow/tools/converter/convert.py script
         """
         self.light_phases_dict = {}
         for node_dict in self.roadnet_dict['intersections']:
             if not node_dict['virtual']:
                 light_phase_id = node_dict['id']
-                # for road_link in node_dict["roadLinks"]:
-                roadlinks = node_dict["roadLinks"]
+                outgoing_roadlinks_pattern = \
+                    light_phase_id.replace('intersection', 'road')
+
+                # Get entering incoming links
+                def inc(x):
+                    return outgoing_roadlinks_pattern not in x['startRoad']
+                incoming_roadlinks = sorted([
+                    y for y in node_dict["roadLinks"] if inc(y)
+                ], key=lambda x: x['startRoad'])
+
+                # Derive lane, direction and link type.
+                def tuplefy(x):
+                    ret = []
+                    road_id = x['startRoad']
+                    direction = int(x['endRoad'][-1])
+                    for lanelink in x['laneLinks']:
+                        lane_id = lanelink['startLaneIndex']
+                        lane = f'{road_id}_{lane_id}'
+                        ret.append((lane, direction, x['type']))
+                    return ret
+
+               # Eliminate data.
+                incoming_roadlinks = sorted(
+                    [z for y in incoming_roadlinks for z in tuplefy(y)],
+                    key=itemgetter(0)
+                )
+                # Unique incoming lanes vs lanelinks
+                # ('road_1_0_1_0', (0, 1), ('turn_right', 'go_straight')),
+                incoming_roadlinks = [
+                    (k,) + tuple(v for v in zip(*[(u, w) for _, u, w  in g]))
+                    for k, g in groupby(incoming_roadlinks,key=itemgetter(0))
+                ]
                 self.light_phases_dict[light_phase_id] = {
                 'phase_plan_2':
                 {
-                     1: self._generate_light_phase_plan_2(roadlinks, 1),
-                     2: self._generate_light_phase_plan_2(roadlinks, 2)
+                     1: self._generate_light_phase_plan_2(incoming_roadlinks, 1),
+                     2: self._generate_light_phase_plan_2(incoming_roadlinks, 2)
                 },
                 'phase_plan_4': {
-                     1: self._generate_light_phase_plan_4(roadlinks, 1),
-                     2: self._generate_light_phase_plan_4(roadlinks, 2),
-                     3: self._generate_light_phase_plan_4(roadlinks, 3),
-                     4: self._generate_light_phase_plan_4(roadlinks, 4)
+                     1: self._generate_light_phase_plan_4(incoming_roadlinks, 1),
+                     2: self._generate_light_phase_plan_4(incoming_roadlinks, 2),
+                     3: self._generate_light_phase_plan_4(incoming_roadlinks, 3),
+                     4: self._generate_light_phase_plan_4(incoming_roadlinks, 4)
                     }
                 }
 
-
     def _generate_light_phase_plan_2(self, roadlinks, index):
-        if index == 1:
-            return [
-                int((roadlink['type'] in ('go_straight',) and roadlink['direction'] in (0,2)) or \
-                    (roadlink['type'] in ('turn_right',) and roadlink['direction'] in (1,3)))
-                for roadlink in roadlinks
-            ]
+        '''Builds a phase plan with 2 phases with moviments:
+            1. Horizontal Green (G)
+                go_straight 0-2 (E, W)
+                turn_right 1-3 (N, S)
+            2. Vertical Green (G)
+               go_straight 1-3 (N, S)
+               turn_right 0-2  (E, W)
+        '''
+        # Horizontal Green: all lanes should be green.
+        def hg(x):
+            link_types = x[2]
+            directions =  x[1]
+            if 'go_straight' in link_types:
+                index = link_types.index('go_straight')
+                straight_direction = directions[index]
+                if straight_direction in (0, 2): return True
+            if 'turn_right' in link_types:
+                index = link_types.index('turn_right')
+                right_direction = directions[index]
+                if right_direction in (1, 3): return True
+            return False
 
-        if index == 2:
-            return [
-                int((roadlink['type'] in ('go_straight',) and roadlink['direction'] in (1,3)) or \
-                    (roadlink['type'] in ('turn_right',) and roadlink['direction'] in (0,2)))
-                for roadlink in roadlinks
-            ]
+        # Vertical Green: all lanes should be green.
+        def vg(x):
+            link_types = x[2]
+            directions =  x[1]
+            if 'go_straight' in link_types:
+                index = link_types.index('go_straight')
+                straight_direction = directions[index]
+                if straight_direction in (1, 3): return True
+            if 'turn_right' in link_types:
+                index = link_types.index('turn_right')
+                right_direction = directions[index]
+                if right_direction in (0, 2): return True
+            return False
 
+        if index == 1: return [int(hg(roadlink)) for roadlink in roadlinks]
+        if index == 2: return [int(vg(roadlink)) for roadlink in roadlinks]
         raise ValueError
 
     def _generate_light_phase_plan_4(self, roadlinks, index):
-        if index == 1:
-            return self._generate_light_phase_plan_2(roadlinks, 1)
-        if index == 2:
-            return [
-                int(roadlink['type'] in ('turn_left',) and roadlink['direction'] in (0,2))
-                for roadlink in roadlinks
-            ]
-        if index == 3:
-            return self._generate_light_phase_plan_2(roadlinks, 2)
+        '''Builds a phase plan with 4 phases with moviments.
+            1. Horizontal Green (G)
+                go_straight 0-2 (E, W)
+                turn_right 1-3 (N, S)
+            2. Horizontal green (g)
+                turn_left 1-3 (E, W)
+            3. Vertical Green (G)
+                go_straight 1-3
+                turn_right 0-2
+            4. Vertical green (g)
+                turn_left 0-2
+        '''
+        # Horizontal green: Only inner lanes are green.
+        def hg(x):
+            link_types = x[2]
+            if 'turn_left' not in link_types: return False
 
-        if index == 4:
-            return [
-                int(roadlink['type'] in ('turn_left',) and roadlink['direction'] in (1,3))
-                for roadlink in roadlinks
-            ]
+            directions =  x[1]
+            index = link_types.index('turn_left')
+            left_direction = directions[index]
+            return left_direction in (1, 3)
+
+        # Vertical green: Only inner lanes are green.
+        def vg(x):
+            link_types = x[2]
+            if 'turn_left' not in link_types: return False
+
+            directions = x[1]
+            index = link_types.index('turn_left')
+            left_direction = directions[index]
+            return left_direction in (0, 2)
+
+        # Horizontal Green: all lanes should be green.
+        if index == 1: return self._generate_light_phase_plan_2(roadlinks, 1)
+        if index == 2: return [int(hg(roadlink)) for roadlink in roadlinks]
+        # Vertical Green: all lanes should be green.
+        if index == 3: return self._generate_light_phase_plan_2(roadlinks, 2)
+        if index == 4: return [int(vg(roadlink)) for roadlink in roadlinks]
         raise ValueError
 
     def hasEdge(self, edge_id):
