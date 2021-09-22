@@ -152,6 +152,10 @@ class AnonEnv:
         return state
 
     def step(self, action):
+
+        # Collect info dict, before _inner_step
+        self._update_info_dict(action, self.get_feature())
+
         step_start_time = time.time()
         list_action_in_sec = [action]
         list_action_in_sec_display = [action]
@@ -164,6 +168,7 @@ class AnonEnv:
             list_action_in_sec_display.append(np.full_like(action, fill_value=-1).tolist())
         # list_action_in_sec_display: control actions
         # but what does fill_value=-1  stands for?
+
 
         average_reward_action_list = [0]*len(action)
         for i in range(self.dic_traffic_env_conf["MIN_ACTION_TIME"]):
@@ -192,8 +197,6 @@ class AnonEnv:
 
             reward = self.get_reward()
 
-            
-            print(self.current_time)
             if self.dic_traffic_env_conf['DEBUG']:
                 print("Reward time: {}".format(time.time()-start_time))
 
@@ -207,9 +210,8 @@ class AnonEnv:
             self.log(cur_time=instant_time, before_action_feature=before_action_feature, action=action_in_sec_display)
 
             next_state, done = self.get_state()
-            # Collect info dict
-            self._get_info_dict(reward, action, next_state)
 
+        print(self.current_time)
         print("Step time: ", time.time() - step_start_time)
         return next_state, reward, done, average_reward_action_list
 
@@ -285,10 +287,10 @@ class AnonEnv:
         # self.log_first_vehicle()
         #self.log_phase()
 
-    def _get_info_dict(self, rewards, actions, states):
+    def _update_info_dict(self, actions, states):
         """Gets information dict."""
-        self.info_dict['rewards'].append({
-            k: v for k, v in zip(self.id_to_index.keys(), rewards)
+        self.info_dict['actions'].append({
+            k: v for k, v in zip(self.id_to_index.keys(), actions)
         })
         self.info_dict['vehicles'].append(sum(
             len(v) for v in self.system_states['get_lane_vehicles'].values()
@@ -298,12 +300,34 @@ class AnonEnv:
         ))
         if self.info_dict['vehicles'][-1] > 0:
             self.info_dict['velocities'][-1] /=  self.info_dict['vehicles'][-1]
-        # self.info_dict['states'].append(
-        #     self._to_dict(states)
-        # )
+        self.info_dict['states'].append(
+            self._build_states(states)
+        )
+        self.info_dict['rewards'].append({
+            k: -sum(v[2:]) for k, v in self.info_dict['states'][-1].items()
+        })
 
-    # def _format_states(self, feature_list):
-    #     return 
+
+
+    # TODO: Process the aggregate state neural-network. 
+    # Before feeding to the MLP.
+    def _build_states(self, features):
+        ret = {}
+        for i, itr in enumerate(self.list_intersection):
+            data = features[i]
+            vehicles = data['lane_num_vehicle']
+            action = self.info_dict['actions'][-1][itr.inter_name]
+            active_phase = \
+                (itr.previous_phase_index if action == 1 else itr.current_phase_index) - 1
+            # active phase id, current time.
+            ret[itr.inter_name] = (active_phase, itr.current_phase_duration)
+
+            # aggregation of phase data.
+            aggr = tuple([sum([vehicles[x] for x, y in enumerate(indices) if y == 1])
+                 for indices in itr.list_phases.values()])
+            ret[itr.inter_name] += aggr
+        return ret
+
 
     def load_roadnet(self, roadnetFile=None):
         print("Start load roadnet")
