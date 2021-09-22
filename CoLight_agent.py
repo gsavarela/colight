@@ -149,7 +149,6 @@ class CoLightAgent(Agent):
         else:
             decayed_epsilon = self.dic_agent_conf["EPSILON"] * pow(self.dic_agent_conf["EPSILON_DECAY"], cnt_round)
             self.dic_agent_conf["EPSILON"] = max(decayed_epsilon, self.dic_agent_conf["MIN_EPSILON"])
-        
 
 
     def compute_len_feature(self):
@@ -279,10 +278,10 @@ class CoLightAgent(Agent):
 
         batch_size=len(state)
         if total_features==[] and total_adjs==[]:
-            total_features,total_adjs=list(),list()
-            for i in range(batch_size): 
+            total_features, total_adjs = list(), list()
+            for i in range(batch_size):
                 feature=[]
-                adj=[] 
+                adj=[]
                 for j in range(self.num_agents):
                     observation=[]
                     for feature_name in self.dic_traffic_env_conf["LIST_STATE_FEATURE"]:
@@ -297,7 +296,6 @@ class CoLightAgent(Agent):
                                 phases = self.intersection.list_phases
                                 # jinan
                                 # assert len(phases[phase_index]) == 12
-
                                 observation.extend(phases[phase_index])
                             else:
                                 observation.extend(state[i][j][feature_name])

@@ -219,7 +219,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             "ADJACENCY_BY_CONNECTION_OR_GEO": ADJACENCY_BY_CONNECTION_OR_GEO,
             "TOP_K_ADJACENCY_LANE": TOP_K_ADJACENCY_LANE,
             "BINARY_PHASE_EXPANSION": True,
-            "FAST_COMPUTE": True,
+            "FAST_COMPUTE": False,
 
             "NEIGHBOR": NEIGHBOR,
             "MODEL_NAME": mod,

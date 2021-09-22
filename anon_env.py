@@ -1,19 +1,25 @@
 '''
 Interactions with CityFlow, get/set values from CityFlow, pass it to RL agents
 '''
-import pickle
-import numpy as np
+
 import sys
-import pandas as pd
 import os, json
-import cityflow as engine
+import pickle
 import time
 import threading
+from collections import defaultdict
 from multiprocessing import Process, Pool
+
+import pandas as pd
+import numpy as np
+import cityflow as engine
+
 from roadnet import RoadNet
 from intersection import Intersection
 from script import get_traffic_volume
 from copy import deepcopy
+
+def g_lst(): return []
 
 class AnonEnv:
     list_intersection_id = [
@@ -29,6 +35,7 @@ class AnonEnv:
         self.list_inter_log = None
         self.list_lanes = None
         self.system_states = None
+        self.info_dict = defaultdict(g_lst)
         self.feature_name_for_neighbor = self._reduce_duplicates(self.dic_traffic_env_conf["LIST_STATE_FEATURE"])
 
         # check min action time
@@ -148,12 +155,15 @@ class AnonEnv:
         step_start_time = time.time()
         list_action_in_sec = [action]
         list_action_in_sec_display = [action]
+        # 1. This loops builds the control actions.
         for i in range(self.dic_traffic_env_conf["MIN_ACTION_TIME"]-1):
             if self.dic_traffic_env_conf["ACTION_PATTERN"] == "switch":
                 list_action_in_sec.append(np.zeros_like(action).tolist())
             elif self.dic_traffic_env_conf["ACTION_PATTERN"] == "set":
                 list_action_in_sec.append(np.copy(action).tolist())
             list_action_in_sec_display.append(np.full_like(action, fill_value=-1).tolist())
+        # list_action_in_sec_display: control actions
+        # but what does fill_value=-1  stands for?
 
         average_reward_action_list = [0]*len(action)
         for i in range(self.dic_traffic_env_conf["MIN_ACTION_TIME"]):
@@ -182,6 +192,8 @@ class AnonEnv:
 
             reward = self.get_reward()
 
+            
+            print(self.current_time)
             if self.dic_traffic_env_conf['DEBUG']:
                 print("Reward time: {}".format(time.time()-start_time))
 
@@ -195,6 +207,8 @@ class AnonEnv:
             self.log(cur_time=instant_time, before_action_feature=before_action_feature, action=action_in_sec_display)
 
             next_state, done = self.get_state()
+            # Collect info dict
+            self._get_info_dict(reward, action, next_state)
 
         print("Step time: ", time.time() - step_start_time)
         return next_state, reward, done, average_reward_action_list
@@ -270,6 +284,26 @@ class AnonEnv:
         #self.log_lane_vehicle_position()
         # self.log_first_vehicle()
         #self.log_phase()
+
+    def _get_info_dict(self, rewards, actions, states):
+        """Gets information dict."""
+        self.info_dict['rewards'].append({
+            k: v for k, v in zip(self.id_to_index.keys(), rewards)
+        })
+        self.info_dict['vehicles'].append(sum(
+            len(v) for v in self.system_states['get_lane_vehicles'].values()
+        ))
+        self.info_dict['velocities'].append(sum(
+            v for v in self.system_states['get_vehicle_speed'].values()
+        ))
+        if self.info_dict['vehicles'][-1] > 0:
+            self.info_dict['velocities'][-1] /=  self.info_dict['vehicles'][-1]
+        # self.info_dict['states'].append(
+        #     self._to_dict(states)
+        # )
+
+    # def _format_states(self, feature_list):
+    #     return 
 
     def load_roadnet(self, roadnetFile=None):
         print("Start load roadnet")
