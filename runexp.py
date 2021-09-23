@@ -222,7 +222,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             "TOP_K_ADJACENCY_LANE": TOP_K_ADJACENCY_LANE,
             "BINARY_PHASE_EXPANSION": True,
             "FAST_COMPUTE": False,
-
+            "EMIT": False,
             "NEIGHBOR": NEIGHBOR,
             "MODEL_NAME": mod,
 
@@ -231,6 +231,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             "SAVEREPLAY": SAVEREPLAY,
             "NUM_ROW": NUM_ROW,
             "NUM_COL": NUM_COL,
+
 
             "TRAFFIC_FILE": traffic_file,
             "VOLUME": volume,

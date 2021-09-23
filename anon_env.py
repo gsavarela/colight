@@ -20,6 +20,13 @@ from intersection import Intersection
 from script import get_traffic_volume
 from copy import deepcopy
 
+# prevent randomization
+PYTHONHASHSEED=-1
+
+
+def simple_hash(x):
+    return hash(x) % (11 * 255)
+
 def g_lst(): return []
 
 class AnonEnv:
@@ -37,6 +44,7 @@ class AnonEnv:
         self.list_lanes = None
         self.system_states = None
         self.info_dict = defaultdict(g_lst)
+        self.emission = []
         self.feature_name_for_neighbor = self._reduce_duplicates(self.dic_traffic_env_conf["LIST_STATE_FEATURE"])
         self.seed = dic_traffic_env_conf['SEED']
 
@@ -260,6 +268,7 @@ class AnonEnv:
                               "get_vehicle_distance": self.eng.get_vehicle_distance()
                               }
 
+        if self.dic_traffic_env_conf['EMIT']:  self._update_emission()
         # print("Get system state time: ", time.time()-system_state_start_time)
 
         if self.dic_traffic_env_conf['DEBUG']:
@@ -315,7 +324,24 @@ class AnonEnv:
             k: -sum(v[2:]) for k, v in self.info_dict['states'][-1].items()
         })
 
-
+    def _update_emission(self):
+        """Builds sumo like emission file"""
+        timestep = self.get_current_time()
+        for laneid, vehids in self.system_states['get_lane_vehicles'].items():
+            for vehid in vehids:
+                vd  = self.eng.get_vehicle_info(vehicle_id=vehid)
+                emission_dict = {
+                    'time': timestep,
+                    'id': vehid,
+                    'lane': laneid,
+                    'pos': float(vd['distance']),
+                    'route': simple_hash(vd['route']),
+                    'speed': float(vd['speed']),
+                    'type': 'human',
+                    'x': 0,
+                    'y': 0
+                }
+                self.emission.append(emission_dict)
 
     # TODO: Process the aggregate state neural-network. 
     # Before feeding to the MLP.
@@ -423,6 +449,11 @@ class AnonEnv:
     def info_log(self):
         info_log_path = Path(self.path_to_log) / 'train_log.json'
         with info_log_path.open('w') as f: json.dump(self.info_dict, f)
+
+    def emission_log(self):
+        if self.dic_traffic_env_conf['EMIT']:
+            emission_log_path = Path(self.path_to_log) / 'emission_log.json'
+            with emission_log_path.open('w') as f: json.dump(self.emission, f)
 
     def bulk_log_multi_process(self, batch_size=100):
         assert len(self.list_intersection) == len(self.list_inter_log)
@@ -810,6 +841,8 @@ class AnonEnv:
     def end_sumo(self):
         print("anon process end")
         pass
+
+
 
 if __name__ == '__main__':
     dic_agent_conf = {

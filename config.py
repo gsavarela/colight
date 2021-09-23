@@ -128,6 +128,7 @@ dic_traffic_env_conf = {
     "MEASURE_TIME": 10,
     "IF_GUI": True,
     "DEBUG": False,
+    "EMIT": False,
 
     "INTERVAL": 1,
     "THREADNUM": 8,
