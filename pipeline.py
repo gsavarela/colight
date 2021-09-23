@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 from generator import Generator
 from construct_sample import ConstructSample
 from updater import Updater
-from multiprocessing import Process, Pool
+from multiprocessing import Process, Pool, Manager
 from model_pool import ModelPool
 import random
 import pickle
@@ -79,7 +79,7 @@ class Pipeline:
                   indent=4)
         json.dump(self.dic_agent_conf, open(os.path.join(path, "agent.conf"), "w"),
                   indent=4)
-        json.dump(self.dic_traffic_env_conf,
+        json.dump(dict(self.dic_traffic_env_conf),
                   open(os.path.join(path, "traffic_env.conf"), "w"), indent=4)
 
     def _copy_anon_file(self, path=None):
@@ -106,7 +106,7 @@ class Pipeline:
         # load configurations
         self.dic_exp_conf = dic_exp_conf
         self.dic_agent_conf = dic_agent_conf
-        self.dic_traffic_env_conf = dic_traffic_env_conf
+        self.dic_traffic_env_conf = Manager().dict(dic_traffic_env_conf) #DicProxy (SharedVariable)
         self.dic_path = dic_path
 
         # do file operations
@@ -235,23 +235,24 @@ class Pipeline:
         for i in range(dic_traffic_env_conf['NUM_INTERSECTIONS']):
             self.downsample(path_to_log, i)
 
-    def construct_sample_multi_process(self, train_round, cnt_round, batch_size=200):
-        cs = ConstructSample(path_to_samples=train_round, cnt_round=cnt_round,
-                             dic_traffic_env_conf=self.dic_traffic_env_conf)
-        if batch_size > self.dic_traffic_env_conf['NUM_INTERSECTIONS']:
-            batch_size_run = self.dic_traffic_env_conf['NUM_INTERSECTIONS']
-        else:
-            batch_size_run = batch_size
-        process_list = []
-        for batch in range(0, self.dic_traffic_env_conf['NUM_INTERSECTIONS'], batch_size_run):
-            start = batch
-            stop = min(batch + batch_size, self.dic_traffic_env_conf['NUM_INTERSECTIONS'])
-            process_list.append(Process(target=self.construct_sample_batch, args=(cs, start, stop)))
+    # TODO: Deprecate this method.
+    # def construct_sample_multi_process(self, train_round, cnt_round, batch_size=200):
+    #     cs = ConstructSample(path_to_samples=train_round, cnt_round=cnt_round,
+    #                          dic_traffic_env_conf=self.dic_traffic_env_conf)
+    #     if batch_size > self.dic_traffic_env_conf['NUM_INTERSECTIONS']:
+    #         batch_size_run = self.dic_traffic_env_conf['NUM_INTERSECTIONS']
+    #     else:
+    #         batch_size_run = batch_size
+    #     process_list = []
+    #     for batch in range(0, self.dic_traffic_env_conf['NUM_INTERSECTIONS'], batch_size_run):
+    #         start = batch
+    #         stop = min(batch + batch_size, self.dic_traffic_env_conf['NUM_INTERSECTIONS'])
+    #         process_list.append(Process(target=self.construct_sample_batch, args=(cs, start, stop)))
 
-        for t in process_list:
-            t.start()
-        for t in process_list:
-            t.join()
+    #     for t in process_list:
+    #         t.start()
+    #     for t in process_list:
+    #         t.join()
 
     def construct_sample_batch(self, cs, start,stop):
         for inter_id in range(start, stop):
@@ -312,6 +313,7 @@ class Pipeline:
                         train_round = os.path.join(self.dic_path["PATH_TO_PRETRAIN_WORK_DIRECTORY"], "train_round")
                         if not os.path.exists(train_round):
                             os.makedirs(train_round)
+
                         cs = ConstructSample(path_to_samples=train_round, cnt_round=cnt_round,
                                              dic_traffic_env_conf=self.dic_traffic_env_conf)
                         cs.make_reward()
@@ -389,13 +391,15 @@ class Pipeline:
                 print("end join")
             else:
                 for cnt_gen in range(self.dic_exp_conf["NUM_GENERATORS"]):
-                    self.generator_wrapper(cnt_round=cnt_round,
-                                           cnt_gen=cnt_gen,
-                                           dic_path=self.dic_path,
-                                           dic_exp_conf=self.dic_exp_conf,
-                                           dic_agent_conf=self.dic_agent_conf,
-                                           dic_traffic_env_conf=self.dic_traffic_env_conf,
-                                           best_round=best_round)
+                    self.generator_wrapper(
+                        cnt_round=cnt_round,
+                        cnt_gen=cnt_gen,
+                        dic_path=self.dic_path,
+                        dic_exp_conf=self.dic_exp_conf,
+                        dic_agent_conf=self.dic_agent_conf,
+                        dic_traffic_env_conf=self.dic_traffic_env_conf,
+                        best_round=best_round
+                    )
             generator_end_time = time.time()
             generator_total_time = generator_end_time - generator_start_time
             print("==============  make samples =============")
@@ -405,6 +409,7 @@ class Pipeline:
             train_round = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round")
             if not os.path.exists(train_round):
                 os.makedirs(train_round)
+
 
 
             cs = ConstructSample(path_to_samples=train_round, cnt_round=cnt_round,

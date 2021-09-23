@@ -51,6 +51,11 @@ class AnonEnv:
             f = open(path_to_log_file, "wb")
             f.close()
 
+    @property
+    def traffic_light_phases(self):
+        if self.list_intersection is None: return None
+        return [itr.list_phases for itr in self.list_intersection]
+
     def reset(self):
 
         print("# self.eng.reset() to be implemented")

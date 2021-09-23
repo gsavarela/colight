@@ -212,7 +212,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             "NUM_AGENTS": num_intersections,
             "NUM_INTERSECTIONS": num_intersections,
             "ACTION_PATTERN": "switch",
-            "MEASURE_TIME": 10,
+            "MEASURE_TIME": 5,
             "IF_GUI": gui,
             "DEBUG": False,
             "TOP_K_ADJACENCY": TOP_K_ADJACENCY,

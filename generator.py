@@ -32,16 +32,7 @@ class Generator:
               dic_traffic_env_conf = self.dic_traffic_env_conf
         )
         self.env.reset()
-        if 'traffic_light_phases' not in self.dic_traffic_env_conf:
-            self.dic_traffic_env_conf['traffic_light_phases'] = []
-            self.dic_traffic_env_conf['traffic_light_sensors'] = []
-            for intersec in self.env.list_intersection:
-                self.dic_traffic_env_conf['traffic_light_phases'].append(
-                    intersec.list_phases
-                )
-                self.dic_traffic_env_conf['traffic_light_sensors'].append(
-                    len(intersec.list_entering_lanes)
-                )
+        self.dic_traffic_env_conf['traffic_light_phases'] = self.env.traffic_light_phases
 
         # every generator's output
         # generator for pretraining
@@ -88,12 +79,6 @@ class Generator:
                     )
                 self.agents[i] = agent
             print("Create intersection agent time: ", time.time()-start_time)
-
-
-
-
-
-
 
     def generate(self):
 
@@ -146,3 +131,4 @@ class Generator:
         print("reset_env_time: ", reset_env_time)
         print("running_time: ", running_time)
         print("log_time: ", log_time)
+        return
