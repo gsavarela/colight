@@ -1,6 +1,14 @@
+''' Custom rollouts settings:
+    SEED = [...]
+    LIST_MODEL_NEED_TO_UPDATE = []
+    PRETRAIN = True
+    NUM_ROUNDS = NUM_RUNS
+    NUM_GENERATORS = NUM_PROCESSORS
+
+'''
 import config
 import copy
-from pipeline import Pipeline
+from rollout_jobs import RolloutJob
 import os
 import time
 from multiprocessing import Process
@@ -14,8 +22,8 @@ from script import get_traffic_volume
 multi_process = True
 TOP_K_ADJACENCY=-1
 TOP_K_ADJACENCY_LANE=-1
-PRETRAIN=False
-NUM_ROUNDS=100
+PRETRAIN=True
+NUM_ROUNDS=1
 EARLY_STOP=False
 NEIGHBOR=False
 SAVEREPLAY=False
@@ -39,7 +47,7 @@ def parse_args():
     global TOP_K_ADJACENCY_LANE
     TOP_K_ADJACENCY_LANE=5
     global NUM_ROUNDS
-    NUM_ROUNDS=100
+    NUM_ROUNDS=1
     global EARLY_STOP
     EARLY_STOP=False
     global NEIGHBOR
@@ -53,7 +61,7 @@ def parse_args():
 
     #modify:TOP_K_ADJACENCY in line 154
     global PRETRAIN
-    PRETRAIN=False
+    PRETRAIN=True
     parser.add_argument("--mod", type=str, default='CoLight')#SimpleDQN,SimpleDQNOne,GCN,CoLight,Lit
     parser.add_argument("--cnt",type=int, default=3600)#3600
     parser.add_argument("--gen",type=int, default=4)#4
@@ -83,12 +91,6 @@ def parse_args():
             3: [1, 0, 1, 0, 0, 0, 0, 0],
             4: [0, 0, 0, 0, 1, 0, 1, 0]
         }
-
-        # FIXME: Hardcode: Lisbon 1_1
-        # ANON_PHASE_REPRE={
-        #     1: [0, 0, 1, 1, 1, 1, 0, 0],
-        #     2: [1, 1, 0, 0, 0, 0, 0, 1]
-        # }
     print('agent_name:%s', tt.mod)
     print('ANON_PHASE_REPRE:', ANON_PHASE_REPRE)
 
@@ -124,8 +126,8 @@ def check_all_workers_working(list_cur_p):
 
     return -1
 
-def pipeline_wrapper(dic_exp_conf, dic_agent_conf, dic_traffic_env_conf, dic_path):
-    ppl = Pipeline(dic_exp_conf=dic_exp_conf, # experiment config
+def rollout_wrapper(dic_exp_conf, dic_agent_conf, dic_traffic_env_conf, dic_path):
+    ppl = RolloutJob(dic_exp_conf=dic_exp_conf, # experiment config
                    dic_agent_conf=dic_agent_conf, # RL agent config
                    dic_traffic_env_conf=dic_traffic_env_conf, # the simolation configuration
                    dic_path=dic_path # where should I save the logs?
@@ -133,7 +135,7 @@ def pipeline_wrapper(dic_exp_conf, dic_agent_conf, dic_traffic_env_conf, dic_pat
     global multi_process
     ppl.run(multi_process=multi_process)
 
-    print("pipeline_wrapper end")
+    print("rollout_wrapper end")
     return
 
 
@@ -186,6 +188,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             "AGGREGATE": False,
             "DEBUG": False,
             "EARLY_STOP": EARLY_STOP,
+            "LIST_MODEL_NEED_TO_UPDATE": [],
         }
 
         dic_agent_conf_extra = {
@@ -451,21 +454,20 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
         deploy_dic_agent_conf = merge(getattr(config, "DIC_{0}_AGENT_CONF".format(mod.upper())),
                                       dic_agent_conf_extra)
         deploy_dic_traffic_env_conf = merge(config.dic_traffic_env_conf, dic_traffic_env_conf_extra)
-
         # TODO add agent_conf for different agents
         # deploy_dic_agent_conf_all = [deploy_dic_agent_conf for i in range(deploy_dic_traffic_env_conf["NUM_AGENTS"])]
 
         deploy_dic_path = merge(config.DIC_PATH, dic_path_extra)
 
         if multi_process:
-            ppl = Process(target=pipeline_wrapper,
+            ppl = Process(target=rollout_wrapper,
                           args=(deploy_dic_exp_conf,
                                 deploy_dic_agent_conf,
                                 deploy_dic_traffic_env_conf,
                                 deploy_dic_path))
             process_list.append(ppl)
         else:
-            pipeline_wrapper(dic_exp_conf=deploy_dic_exp_conf,
+            rollout_wrapper(dic_exp_conf=deploy_dic_exp_conf,
                              dic_agent_conf=deploy_dic_agent_conf,
                              dic_traffic_env_conf=deploy_dic_traffic_env_conf,
                              dic_path=deploy_dic_path)
