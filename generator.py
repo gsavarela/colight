@@ -18,6 +18,13 @@ class Generator:
         self.dic_traffic_env_conf = dic_traffic_env_conf
         self.agents = [None]*dic_traffic_env_conf['NUM_AGENTS']
 
+        # Builds seed.
+        self.seed = cnt_gen * dic_exp_conf['SEED_GROWTH_FACTOR'] \
+             + dic_exp_conf['SEED_BASE']
+        self.dic_exp_conf['SEED'] = self.seed
+        self.dic_agent_conf['SEED'] = self.seed
+        self.dic_traffic_env_conf['SEED'] = self.seed
+
         if self.dic_exp_conf["PRETRAIN"]:
             self.path_to_log = os.path.join(self.dic_path["PATH_TO_PRETRAIN_WORK_DIRECTORY"], "train_round",
                                             "round_" + str(self.cnt_round), "generator_" + str(self.cnt_gen))
@@ -29,7 +36,7 @@ class Generator:
         self.env = AnonEnv(
               path_to_log = self.path_to_log,
               path_to_work_directory = self.dic_path["PATH_TO_WORK_DIRECTORY"],
-              dic_traffic_env_conf = self.dic_traffic_env_conf
+              dic_traffic_env_conf = self.dic_traffic_env_conf,
         )
         self.env.reset()
         self.dic_traffic_env_conf['traffic_light_phases'] = self.env.traffic_light_phases

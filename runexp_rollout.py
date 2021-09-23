@@ -19,7 +19,7 @@ import matplotlib
 
 from script import get_traffic_volume
 
-multi_process = True
+multi_process = False
 TOP_K_ADJACENCY=-1
 TOP_K_ADJACENCY_LANE=-1
 PRETRAIN=True
@@ -160,7 +160,8 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
 
     process_list = []
     n_workers = workers     #len(traffic_file_list)
-    multi_process = True
+    global multi_process
+    multi_process = n_workers > 1
 
     global PRETRAIN
     global NUM_ROUNDS
@@ -189,6 +190,8 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             "DEBUG": False,
             "EARLY_STOP": EARLY_STOP,
             "LIST_MODEL_NEED_TO_UPDATE": [],
+            "SEED_BASE": 0,
+            "SEED_GROWTH_FACTOR": 10,
         }
 
         dic_agent_conf_extra = {

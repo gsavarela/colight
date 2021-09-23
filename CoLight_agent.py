@@ -73,6 +73,12 @@ class CoLightAgent(Agent):
         self.intersection=intersection
         self.vec=np.zeros((1,self.num_neighbors))
         self.vec[0][0]=1
+        self.seed = dic_traffic_env_conf['SEED']
+
+
+        random.seed(self.seed)
+        np.random.seed(self.seed)
+        tf.set_random_seed(self.seed)
 
         # FIXME: Custom light phases
         # self.num_actions = len(self.dic_traffic_env_conf["PHASE"][self.dic_traffic_env_conf['SIMULATOR_TYPE']])

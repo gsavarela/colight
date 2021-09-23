@@ -38,6 +38,7 @@ class AnonEnv:
         self.system_states = None
         self.info_dict = defaultdict(g_lst)
         self.feature_name_for_neighbor = self._reduce_duplicates(self.dic_traffic_env_conf["LIST_STATE_FEATURE"])
+        self.seed = dic_traffic_env_conf['SEED']
 
         # check min action time
         if self.dic_traffic_env_conf["MIN_ACTION_TIME"] <= self.dic_traffic_env_conf["YELLOW_TIME"]:
@@ -62,7 +63,7 @@ class AnonEnv:
 
         cityflow_config = {
             "interval": self.dic_traffic_env_conf["INTERVAL"],
-            "seed": 0,
+            "seed": self.seed,
             "laneChange": False,
             "dir": self.path_to_work_directory+"/",
             "roadnetFile": self.dic_traffic_env_conf["ROADNET_FILE"],
@@ -78,6 +79,7 @@ class AnonEnv:
         with open(os.path.join(self.path_to_work_directory,"cityflow.config"), "w") as json_file:
             json.dump(cityflow_config, json_file)
         self.eng = engine.Engine(os.path.join(self.path_to_work_directory,"cityflow.config"), thread_num=1)
+        self.eng.set_random_seed(self.seed)
         # self.load_roadnet()
         # self.load_flow()
 

@@ -186,6 +186,8 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             "AGGREGATE": False,
             "DEBUG": False,
             "EARLY_STOP": EARLY_STOP,
+            "SEED_BASE": 0,
+            "SEED_GROWTH_FACTOR": 10,
         }
 
         dic_agent_conf_extra = {
