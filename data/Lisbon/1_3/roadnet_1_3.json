@@ -412,6 +412,10 @@
         ],
         "lightphases": [
           {
+            "availableRoadLinks": [],
+            "time": 6
+          },
+          {
             "availableRoadLinks": [
               2,
               3,
@@ -421,10 +425,6 @@
             "time": 20
           },
           {
-            "availableRoadLinks": [],
-            "time": 6
-          },
-          {
             "availableRoadLinks": [
               0,
               1,
@@ -432,10 +432,6 @@
               7
             ],
             "time": 28
-          },
-          {
-            "availableRoadLinks": [],
-            "time": 6
           }
         ]
       },
@@ -804,6 +800,10 @@
         ],
         "lightphases": [
           {
+            "availableRoadLinks": [],
+            "time": 6
+          },
+          {
             "availableRoadLinks": [
               1,
               2,
@@ -812,20 +812,12 @@
             "time": 19
           },
           {
-            "availableRoadLinks": [],
-            "time": 6
-          },
-          {
             "availableRoadLinks": [
               0,
               4,
               5
             ],
             "time": 29
-          },
-          {
-            "availableRoadLinks": [],
-            "time": 6
           }
         ]
       },
@@ -1193,6 +1185,10 @@
         ],
         "lightphases": [
           {
+            "availableRoadLinks": [],
+            "time": 6
+          },
+          {
             "availableRoadLinks": [
               2,
               3,
@@ -1201,20 +1197,12 @@
             "time": 20
           },
           {
-            "availableRoadLinks": [],
-            "time": 6
-          },
-          {
             "availableRoadLinks": [
               0,
               1,
               5
             ],
             "time": 28
-          },
-          {
-            "availableRoadLinks": [],
-            "time": 6
           }
         ]
       },
