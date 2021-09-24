@@ -1,14 +1,6 @@
-''' Custom rollouts settings:
-    SEED = [...]
-    LIST_MODEL_NEED_TO_UPDATE = []
-    PRETRAIN = True
-    NUM_ROUNDS = NUM_RUNS
-    NUM_GENERATORS = NUM_PROCESSORS
-
-'''
 import config
 import copy
-from rollout_job import RolloutJob
+from train_job import TrainJob
 import os
 import time
 from multiprocessing import Process
@@ -22,8 +14,8 @@ from script import get_traffic_volume
 multi_process = False
 TOP_K_ADJACENCY=-1
 TOP_K_ADJACENCY_LANE=-1
-PRETRAIN=True
-NUM_ROUNDS=1
+PRETRAIN=False
+NUM_ROUNDS=5
 EARLY_STOP=False
 NEIGHBOR=False
 SAVEREPLAY=False
@@ -47,7 +39,6 @@ def parse_args():
     global TOP_K_ADJACENCY_LANE
     TOP_K_ADJACENCY_LANE=5
     global NUM_ROUNDS
-    NUM_ROUNDS=1
     global EARLY_STOP
     EARLY_STOP=False
     global NEIGHBOR
@@ -61,7 +52,7 @@ def parse_args():
 
     #modify:TOP_K_ADJACENCY in line 154
     global PRETRAIN
-    PRETRAIN=True
+    PRETRAIN=False
     parser.add_argument("--mod", type=str, default='CoLight')#SimpleDQN,SimpleDQNOne,GCN,CoLight,Lit
     parser.add_argument("--cnt",type=int, default=3600)#3600
     parser.add_argument("--gen",type=int, default=4)#4
@@ -91,6 +82,12 @@ def parse_args():
             3: [1, 0, 1, 0, 0, 0, 0, 0],
             4: [0, 0, 0, 0, 1, 0, 1, 0]
         }
+
+        # FIXME: Hardcode: Lisbon 1_1
+        # ANON_PHASE_REPRE={
+        #     1: [0, 0, 1, 1, 1, 1, 0, 0],
+        #     2: [1, 1, 0, 0, 0, 0, 0, 1]
+        # }
     print('agent_name:%s', tt.mod)
     print('ANON_PHASE_REPRE:', ANON_PHASE_REPRE)
 
@@ -126,8 +123,8 @@ def check_all_workers_working(list_cur_p):
 
     return -1
 
-def rollout_wrapper(dic_exp_conf, dic_agent_conf, dic_traffic_env_conf, dic_path):
-    ppl = RolloutJob(dic_exp_conf=dic_exp_conf, # experiment config
+def train_job_wrapper(dic_exp_conf, dic_agent_conf, dic_traffic_env_conf, dic_path):
+    ppl = TrainJob(dic_exp_conf=dic_exp_conf, # experiment config
                    dic_agent_conf=dic_agent_conf, # RL agent config
                    dic_traffic_env_conf=dic_traffic_env_conf, # the simolation configuration
                    dic_path=dic_path # where should I save the logs?
@@ -135,7 +132,7 @@ def rollout_wrapper(dic_exp_conf, dic_agent_conf, dic_traffic_env_conf, dic_path
     global multi_process
     ppl.run(multi_process=multi_process)
 
-    print("rollout_wrapper end")
+    print("train_job_wrapper end")
     return
 
 
@@ -160,8 +157,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
 
     process_list = []
     n_workers = workers     #len(traffic_file_list)
-    global multi_process
-    multi_process = n_workers > 1
+    multi_process = workers > 1
 
     global PRETRAIN
     global NUM_ROUNDS
@@ -177,6 +173,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
 
             "NUM_ROUNDS": NUM_ROUNDS,
             "NUM_GENERATORS": gen,
+            "NUM_TRAIN_UPDATES":5,
 
             "MODEL_POOL": False,
             "NUM_BEST_MODEL": 3,
@@ -189,7 +186,6 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             "AGGREGATE": False,
             "DEBUG": False,
             "EARLY_STOP": EARLY_STOP,
-            "LIST_MODEL_NEED_TO_UPDATE": [],
             "SEED_BASE": 0,
             "SEED_GROWTH_FACTOR": 10,
         }
@@ -226,16 +222,14 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             "TOP_K_ADJACENCY_LANE": TOP_K_ADJACENCY_LANE,
             "BINARY_PHASE_EXPANSION": True,
             "FAST_COMPUTE": False,
-            "EMIT": True,
-
+            "EMIT": False,
             "NEIGHBOR": NEIGHBOR,
             "MODEL_NAME": mod,
-
-
 
             "SAVEREPLAY": SAVEREPLAY,
             "NUM_ROW": NUM_ROW,
             "NUM_COL": NUM_COL,
+
 
             "TRAFFIC_FILE": traffic_file,
             "VOLUME": volume,
@@ -458,20 +452,21 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
         deploy_dic_agent_conf = merge(getattr(config, "DIC_{0}_AGENT_CONF".format(mod.upper())),
                                       dic_agent_conf_extra)
         deploy_dic_traffic_env_conf = merge(config.dic_traffic_env_conf, dic_traffic_env_conf_extra)
+
         # TODO add agent_conf for different agents
         # deploy_dic_agent_conf_all = [deploy_dic_agent_conf for i in range(deploy_dic_traffic_env_conf["NUM_AGENTS"])]
 
         deploy_dic_path = merge(config.DIC_PATH, dic_path_extra)
 
         if multi_process:
-            ppl = Process(target=rollout_wrapper,
+            ppl = Process(target=train_job_wrapper,
                           args=(deploy_dic_exp_conf,
                                 deploy_dic_agent_conf,
                                 deploy_dic_traffic_env_conf,
                                 deploy_dic_path))
             process_list.append(ppl)
         else:
-            rollout_wrapper(dic_exp_conf=deploy_dic_exp_conf,
+            train_job_wrapper(dic_exp_conf=deploy_dic_exp_conf,
                              dic_agent_conf=deploy_dic_agent_conf,
                              dic_traffic_env_conf=deploy_dic_traffic_env_conf,
                              dic_path=deploy_dic_path)

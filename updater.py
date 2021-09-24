@@ -13,6 +13,218 @@ import numpy as np
 from config import DIC_AGENTS
 from anon_env import AnonEnv
 
+def load_sample_for_agents(dic_agent_conf, dic_exp_conf, dic_traffic_env_conf, dic_path, agents):
+    # TODO should be number of agents
+    start_time = time.time()
+    print("Start load samples at", start_time)
+    if dic_exp_conf['MODEL_NAME'] not in ["GCN","CoLight"]:
+        if dic_traffic_env_conf["ONE_MODEL"] or dic_exp_conf['MODEL_NAME'] in ["SimpleDQNOne"]: # for one model
+            sample_set_all = []
+            for i in range(dic_traffic_env_conf['NUM_INTERSECTIONS']):
+                sample_set = _load_sample_with_forget(dic_agent_conf, dic_exp_conf, dic_path, i)
+                sample_set_all.extend(sample_set)
+
+            agents[0].prepare_Xs_Y(sample_set_all, dic_exp_conf)
+
+        else:
+            for i in range(dic_traffic_env_conf['NUM_INTERSECTIONS']):
+                sample_set = _load_sample(dic_exp_conf, dic_path, i)
+                agents[i].prepare_Xs_Y(sample_set, dic_exp_conf)
+    else:
+        samples_gcn_df = None
+        if False: # Todo decide multi-process
+            for i in range(dic_traffic_env_conf['NUM_INTERSECTIONS']):
+                sample_set = _load_sample(dic_exp_conf, dic_path, i)
+                if len(sample_set) == 0:
+                    continue
+                samples_set_df = pd.DataFrame.from_records(sample_set,columns= ['state','action','next_state','inst_reward','reward','time','generator'])
+                samples_set_df['input'] = samples_set_df[['state','action','next_state','inst_reward','reward']].values.tolist()
+                samples_set_df.drop(['state','action','next_state','inst_reward','reward'], axis=1, inplace=True)
+                # samples_set_df['inter_id'] = i
+                if samples_gcn_df is None:
+                    samples_gcn_df = samples_set_df
+                else:
+                    # print(samples_set_df[['time','generator']])
+                    samples_gcn_df = pd.merge(samples_gcn_df, samples_set_df, how='inner',
+                                              on=["generator",'time'], suffixes=('','_{0}'.format(i)))
+            intersection_input_columns = ['input'] + ['input_{0}'.format(i+1) for i in range(dic_traffic_env_conf['NUM_INTERSECTIONS']-1)]
+            for i in range(dic_traffic_env_conf['NUM_AGENTS']):
+                sample_set_list = samples_gcn_df[intersection_input_columns].values.tolist()
+                agents[i].prepare_Xs_Y(sample_set_list, dic_exp_conf)
+        elif False :# True:
+            samples_gcn_df = []
+            print("start get samples")
+            get_samples_start_time = time.time()
+            for i in range(dic_traffic_env_conf['NUM_INTERSECTIONS']):
+                sample_set = _load_sample(dic_exp_conf, dic_path, i)
+                samples_set_df = pd.DataFrame.from_records(sample_set,columns= ['state','action','next_state','inst_reward','reward','time','generator'])
+                samples_set_df['input'] = samples_set_df[['state','action','next_state','inst_reward','reward']].values.tolist()
+                samples_set_df.drop(['state','action','next_state','inst_reward','reward','time','generator'], axis=1, inplace=True)
+                # samples_set_df['inter_id'] = i
+                samples_gcn_df.append(samples_set_df['input'])
+                if i%100 == 0:
+                    print("inter {0} samples_set_df.shape: ".format(i), samples_set_df.shape)
+            samples_gcn_df = pd.concat(samples_gcn_df, axis=1)
+            print("samples_gcn_df.shape :", samples_gcn_df.shape)
+            print("Getting samples time: ", time.time()-get_samples_start_time)
+
+            for i in range(dic_traffic_env_conf['NUM_AGENTS']):
+                sample_set_list = samples_gcn_df.values.tolist()
+                agents[i].prepare_Xs_Y(sample_set_list, dic_exp_conf)
+        else:
+            samples_gcn_df = []
+            print("start get samples")
+            get_samples_start_time = time.time()
+            for i in range(dic_traffic_env_conf['NUM_INTERSECTIONS']):
+                sample_set = _load_sample(dic_exp_conf, dic_path, i)
+                samples_set_df = pd.DataFrame.from_records(sample_set,columns= ['state','action','next_state','inst_reward','reward','time','generator'])
+                samples_set_df['input'] = samples_set_df[['state','action','next_state','inst_reward','reward']].values.tolist()
+                samples_set_df.drop(['state','action','next_state','inst_reward','reward','time','generator'], axis=1, inplace=True)
+                # samples_set_df['inter_id'] = i
+                samples_gcn_df.append(samples_set_df['input'])
+                if i%100 == 0:
+                    print("inter {0} samples_set_df.shape: ".format(i), samples_set_df.shape)
+            samples_gcn_df = pd.concat(samples_gcn_df, axis=1)
+            print("samples_gcn_df.shape :", samples_gcn_df.shape)
+            print("Getting samples time: ", time.time()-get_samples_start_time)
+
+            for i in range(dic_traffic_env_conf['NUM_AGENTS']):
+                    sample_set_list = samples_gcn_df.values.tolist()
+                    agents[i].prepare_Xs_Y(sample_set_list, dic_exp_conf)
+
+    print("------------------Load samples time: ", time.time()-start_time)
+
+def _load_sample(dic_exp_conf, dic_path, i):
+    sample_set = []
+    try:
+        if dic_exp_conf["PRETRAIN"]:
+                sample_file = open(os.path.join(dic_path["PATH_TO_PRETRAIN_WORK_DIRECTORY"],
+                                            "train_round", "total_samples" + ".pkl"), "rb")
+        elif dic_exp_conf["AGGREGATE"]:
+            sample_file = open(os.path.join(dic_path["PATH_TO_AGGREGATE_SAMPLES"],
+                                            "aggregate_samples.pkl"), "rb")
+        else:
+            sample_file = open(os.path.join(dic_path["PATH_TO_WORK_DIRECTORY"], "train_round",
+                                            "total_samples_inter_{0}".format(i) + ".pkl"), "rb")
+        try:
+            while True:
+                sample_set += pickle.load(sample_file)
+        except EOFError:
+            sample_file.close()
+            pass
+    except Exception as e:
+        error_dir = os.path.join(dic_path["PATH_TO_WORK_DIRECTORY"]).replace("records", "errors")
+        if not os.path.exists(error_dir):
+            os.makedirs(error_dir)
+        f = open(os.path.join(error_dir, "error_info_inter_{0}.txt".format(i)), "a")
+        f.write("Fail to load samples for inter {0}\n".format(i))
+        f.write('traceback.format_exc():\n%s\n' % traceback.format_exc())
+        f.close()
+        print('traceback.format_exc():\n%s' % traceback.format_exc())
+        pass
+    if i %100 ==0:
+        print("load_sample for inter {0}".format(i))
+    return sample_set
+
+
+def _load_sample_with_forget(dic_agent_conf, dic_exp_conf,  dic_path, i):
+    '''
+    Load sample for each intersection, with forget
+    :param i:
+    :return: a list of samples with fixed indexes
+    '''
+
+    sample_set = []
+    sample_indexes = None
+    try:
+        if dic_exp_conf["PRETRAIN"]:
+                sample_file = open(os.path.join(dic_path["PATH_TO_PRETRAIN_WORK_DIRECTORY"],
+                                            "train_round", "total_samples" + ".pkl"), "rb")
+        elif dic_exp_conf["AGGREGATE"]:
+            sample_file = open(os.path.join(dic_path["PATH_TO_AGGREGATE_SAMPLES"],
+                                            "aggregate_samples.pkl"), "rb")
+        else:
+            sample_file = open(os.path.join(dic_path["PATH_TO_WORK_DIRECTORY"], "train_round",
+                                            "total_samples_inter_{0}".format(i) + ".pkl"), "rb")
+        try:
+            while True:
+                cur_round_sample_set = pickle.load(sample_file)
+                ind_end = len(cur_round_sample_set)
+                if dic_exp_conf["PRETRAIN"] or dic_exp_conf["AGGREGATE"]:
+                    pass
+                else:
+                    ind_sta = max(0, ind_end - dic_agent_conf["MAX_MEMORY_LEN"])
+                    memory_after_forget = cur_round_sample_set[ind_sta: ind_end]
+                    # print("memory size after forget:", len(memory_after_forget))
+
+                    # sample the memory
+                    sample_size = min(dic_agent_conf["SAMPLE_SIZE"], len(memory_after_forget))
+                    if sample_indexes is None:
+                        sample_indexes = random.sample(range(len(memory_after_forget)), sample_size)
+                    sample_set = [memory_after_forget[k] for k in sample_indexes]
+                    # print("memory samples number:", sample_size)
+                    # print(self.sample_indexes)
+                sample_set += cur_round_sample_set
+        except EOFError:
+            pass
+    except Exception as e:
+        error_dir = os.path.join(dic_path["PATH_TO_WORK_DIRECTORY"]).replace("records", "errors")
+        if not os.path.exists(error_dir):
+            os.makedirs(error_dir)
+        f = open(os.path.join(error_dir, "error_info_inter_{0}.txt".format(i)), "a")
+        f.write("Fail to load samples for inter {0}\n".format(i))
+        f.write('traceback.format_exc():\n%s\n' % traceback.format_exc())
+        f.close()
+        print('traceback.format_exc():\n%s' % traceback.format_exc())
+        pass
+    if i %100 == 0:
+        print("load_sample for inter {0}".format(i))
+    return sample_set
+
+
+
+def update_network_for_agents(dic_exp_conf, dic_traffic_env_conf, dic_path, agents, count_round):
+    if dic_traffic_env_conf["ONE_MODEL"]:
+        _update_network(dic_exp_conf, dic_traffic_env_conf, dic_path, agents[0], count_round)
+    else:
+        print("update_network_for_agents", dic_traffic_env_conf['NUM_AGENTS'])
+        for i in range(dic_traffic_env_conf['NUM_AGENTS']):
+            _update_network(dic_exp_conf, dic_traffic_env_conf, dic_path, agents[i], count_round)
+
+def _update_network(dic_exp_conf, dic_traffic_env_conf, dic_path, agent, count_round):
+    agent.train_network(dic_exp_conf)
+    if dic_traffic_env_conf["ONE_MODEL"]:
+        if dic_exp_conf["PRETRAIN"]:
+            agent.q_network.save(os.path.join(dic_path["PATH_TO_PRETRAIN_MODEL"],
+                                         "{0}.h5".format(dic_exp_conf["TRAFFIC_FILE"][0]))
+                                         )
+            shutil.copy(os.path.join(dic_path["PATH_TO_PRETRAIN_MODEL"],
+                                     "{0}.h5".format(dic_exp_conf["TRAFFIC_FILE"][0])),
+                        os.path.join(dic_path["PATH_TO_MODEL"], "round_0.h5"))
+        elif dic_exp_conf["AGGREGATE"]:
+            agent.q_network.save("model/initial", "aggregate.h5")
+            shutil.copy("model/initial/aggregate.h5",
+                        os.path.join(dic_path["PATH_TO_MODEL"], "round_0.h5"))
+        else:
+            agent.save_network("round_{0}".format(count_round))
+
+    else:
+        if dic_exp_conf["PRETRAIN"]:
+            agent.q_network.save(os.path.join(dic_path["PATH_TO_PRETRAIN_MODEL"],
+                                         "{0}_inter_{1}.h5".format(dic_exp_conf["TRAFFIC_FILE"][0],
+                                                                   agent.intersection_id))
+                                         )
+            shutil.copy(os.path.join(dic_path["PATH_TO_PRETRAIN_MODEL"],
+                                     "{0}_inter_{1}.h5".format(dic_exp_conf["TRAFFIC_FILE"][0],
+                                                               agent.intersection_id)),
+                        os.path.join(dic_path["PATH_TO_MODEL"], "round_0.h5"))
+        elif dic_exp_conf["AGGREGATE"]:
+            agent.q_network.save("model/initial", "aggregate_inter_{0}.h5".format(agent.intersection_id))
+            shutil.copy("model/initial/aggregate.h5",
+                        os.path.join(dic_path["PATH_TO_MODEL"], "round_0_inter_{0}.h5".format(agent.intersection_id)))
+        else:
+            agent.save_network("round_{0}_inter_{1}".format(count_round,agent.intersection_id))
+
 class Updater:
 
     def __init__(self, cnt_round, dic_agent_conf, dic_exp_conf, dic_traffic_env_conf, dic_path, best_round=None, bar_round=None):
@@ -51,36 +263,7 @@ class Updater:
             self.agents.append(agent)
 
     def load_sample(self, i):
-        sample_set = []
-        try:
-            if self.dic_exp_conf["PRETRAIN"]:
-                    sample_file = open(os.path.join(self.dic_path["PATH_TO_PRETRAIN_WORK_DIRECTORY"],
-                                                "train_round", "total_samples" + ".pkl"), "rb")
-            elif self.dic_exp_conf["AGGREGATE"]:
-                sample_file = open(os.path.join(self.dic_path["PATH_TO_AGGREGATE_SAMPLES"],
-                                                "aggregate_samples.pkl"), "rb")
-            else:
-                sample_file = open(os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round",
-                                                "total_samples_inter_{0}".format(i) + ".pkl"), "rb")
-            try:
-                while True:
-                    sample_set += pickle.load(sample_file)
-            except EOFError:
-                sample_file.close()
-                pass
-        except Exception as e:
-            error_dir = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"]).replace("records", "errors")
-            if not os.path.exists(error_dir):
-                os.makedirs(error_dir)
-            f = open(os.path.join(error_dir, "error_info_inter_{0}.txt".format(i)), "a")
-            f.write("Fail to load samples for inter {0}\n".format(i))
-            f.write('traceback.format_exc():\n%s\n' % traceback.format_exc())
-            f.close()
-            print('traceback.format_exc():\n%s' % traceback.format_exc())
-            pass
-        if i %100 ==0:
-            print("load_sample for inter {0}".format(i))
-        return sample_set
+        return load_sample(self.dic_exp_conf, self.dic_path, i)
 
     def load_hidden_states_with_forget(self): # hidden state is a list [#time, agent, # dim]
         hidden_states_set = []
@@ -136,141 +319,13 @@ class Updater:
             pass
         return hidden_states_set
 
-
     def load_sample_with_forget(self, i):
-        '''
-        Load sample for each intersection, with forget
-        :param i:
-        :return: a list of samples with fixed indexes
-        '''
+        return load_sample_with_forget(self.dic_agent_conf, self.dic_exp_conf, self.dic_path, i)
 
-        sample_set = []
-        try:
-            if self.dic_exp_conf["PRETRAIN"]:
-                    sample_file = open(os.path.join(self.dic_path["PATH_TO_PRETRAIN_WORK_DIRECTORY"],
-                                                "train_round", "total_samples" + ".pkl"), "rb")
-            elif self.dic_exp_conf["AGGREGATE"]:
-                sample_file = open(os.path.join(self.dic_path["PATH_TO_AGGREGATE_SAMPLES"],
-                                                "aggregate_samples.pkl"), "rb")
-            else:
-                sample_file = open(os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round",
-                                                "total_samples_inter_{0}".format(i) + ".pkl"), "rb")
-            try:
-                while True:
-                    cur_round_sample_set = pickle.load(sample_file)
-                    ind_end = len(cur_round_sample_set)
-                    if self.dic_exp_conf["PRETRAIN"] or self.dic_exp_conf["AGGREGATE"]:
-                        pass
-                    else:
-                        ind_sta = max(0, ind_end - self.dic_agent_conf["MAX_MEMORY_LEN"])
-                        memory_after_forget = cur_round_sample_set[ind_sta: ind_end]
-                        # print("memory size after forget:", len(memory_after_forget))
-
-                        # sample the memory
-                        sample_size = min(self.dic_agent_conf["SAMPLE_SIZE"], len(memory_after_forget))
-                        if self.sample_indexes is None:
-                            self.sample_indexes = random.sample(range(len(memory_after_forget)), sample_size)
-                        sample_set = [memory_after_forget[k] for k in self.sample_indexes]
-                        # print("memory samples number:", sample_size)
-                        # print(self.sample_indexes)
-                    sample_set += cur_round_sample_set
-            except EOFError:
-                pass
-        except Exception as e:
-            error_dir = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"]).replace("records", "errors")
-            if not os.path.exists(error_dir):
-                os.makedirs(error_dir)
-            f = open(os.path.join(error_dir, "error_info_inter_{0}.txt".format(i)), "a")
-            f.write("Fail to load samples for inter {0}\n".format(i))
-            f.write('traceback.format_exc():\n%s\n' % traceback.format_exc())
-            f.close()
-            print('traceback.format_exc():\n%s' % traceback.format_exc())
-            pass
-        if i %100 == 0:
-            print("load_sample for inter {0}".format(i))
-        return sample_set
 
 
     def load_sample_for_agents(self):
-        # TODO should be number of agents
-        start_time = time.time()
-        print("Start load samples at", start_time)
-        if self.dic_exp_conf['MODEL_NAME'] not in ["GCN","CoLight"]:
-            if self.dic_traffic_env_conf["ONE_MODEL"] or self.dic_exp_conf['MODEL_NAME'] in ["SimpleDQNOne"]: # for one model
-                sample_set_all = []
-                for i in range(self.dic_traffic_env_conf['NUM_INTERSECTIONS']):
-                    sample_set = self.load_sample_with_forget(i)
-                    sample_set_all.extend(sample_set)
-
-                self.agents[0].prepare_Xs_Y(sample_set_all, self.dic_exp_conf)
-
-            else:
-                for i in range(self.dic_traffic_env_conf['NUM_INTERSECTIONS']):
-                    sample_set = self.load_sample(i)
-                    self.agents[i].prepare_Xs_Y(sample_set, self.dic_exp_conf)
-        else:
-            samples_gcn_df = None
-            if False: # Todo decide multi-process
-                for i in range(self.dic_traffic_env_conf['NUM_INTERSECTIONS']):
-                    sample_set = self.load_sample(i)
-                    if len(sample_set) == 0:
-                        continue
-                    samples_set_df = pd.DataFrame.from_records(sample_set,columns= ['state','action','next_state','inst_reward','reward','time','generator'])
-                    samples_set_df['input'] = samples_set_df[['state','action','next_state','inst_reward','reward']].values.tolist()
-                    samples_set_df.drop(['state','action','next_state','inst_reward','reward'], axis=1, inplace=True)
-                    # samples_set_df['inter_id'] = i
-                    if samples_gcn_df is None:
-                        samples_gcn_df = samples_set_df
-                    else:
-                        # print(samples_set_df[['time','generator']])
-                        samples_gcn_df = pd.merge(samples_gcn_df, samples_set_df, how='inner',
-                                                  on=["generator",'time'], suffixes=('','_{0}'.format(i)))
-                intersection_input_columns = ['input'] + ['input_{0}'.format(i+1) for i in range(self.dic_traffic_env_conf['NUM_INTERSECTIONS']-1)]
-                for i in range(self.dic_traffic_env_conf['NUM_AGENTS']):
-                    sample_set_list = samples_gcn_df[intersection_input_columns].values.tolist()
-                    self.agents[i].prepare_Xs_Y(sample_set_list, self.dic_exp_conf)
-            elif False :# True:
-                samples_gcn_df = []
-                print("start get samples")
-                get_samples_start_time = time.time()
-                for i in range(self.dic_traffic_env_conf['NUM_INTERSECTIONS']):
-                    sample_set = self.load_sample(i)
-                    samples_set_df = pd.DataFrame.from_records(sample_set,columns= ['state','action','next_state','inst_reward','reward','time','generator'])
-                    samples_set_df['input'] = samples_set_df[['state','action','next_state','inst_reward','reward']].values.tolist()
-                    samples_set_df.drop(['state','action','next_state','inst_reward','reward','time','generator'], axis=1, inplace=True)
-                    # samples_set_df['inter_id'] = i
-                    samples_gcn_df.append(samples_set_df['input'])
-                    if i%100 == 0:
-                        print("inter {0} samples_set_df.shape: ".format(i), samples_set_df.shape)
-                samples_gcn_df = pd.concat(samples_gcn_df, axis=1)
-                print("samples_gcn_df.shape :", samples_gcn_df.shape)
-                print("Getting samples time: ", time.time()-get_samples_start_time)
-
-                for i in range(self.dic_traffic_env_conf['NUM_AGENTS']):
-                    sample_set_list = samples_gcn_df.values.tolist()
-                    self.agents[i].prepare_Xs_Y(sample_set_list, self.dic_exp_conf)
-            else:
-                samples_gcn_df = []
-                print("start get samples")
-                get_samples_start_time = time.time()
-                for i in range(self.dic_traffic_env_conf['NUM_INTERSECTIONS']):
-                    sample_set = self.load_sample(i)
-                    samples_set_df = pd.DataFrame.from_records(sample_set,columns= ['state','action','next_state','inst_reward','reward','time','generator'])
-                    samples_set_df['input'] = samples_set_df[['state','action','next_state','inst_reward','reward']].values.tolist()
-                    samples_set_df.drop(['state','action','next_state','inst_reward','reward','time','generator'], axis=1, inplace=True)
-                    # samples_set_df['inter_id'] = i
-                    samples_gcn_df.append(samples_set_df['input'])
-                    if i%100 == 0:
-                        print("inter {0} samples_set_df.shape: ".format(i), samples_set_df.shape)
-                samples_gcn_df = pd.concat(samples_gcn_df, axis=1)
-                print("samples_gcn_df.shape :", samples_gcn_df.shape)
-                print("Getting samples time: ", time.time()-get_samples_start_time)
-
-                for i in range(self.dic_traffic_env_conf['NUM_AGENTS']):
-                        sample_set_list = samples_gcn_df.values.tolist()
-                        self.agents[i].prepare_Xs_Y(sample_set_list, self.dic_exp_conf)
-
-        print("------------------Load samples time: ", time.time()-start_time)
+        return load_sample_for_agents(self.dic_agent_conf, self.dic_exp_conf, self.dic_traffic_env_conf, self.dic_path, self.agents)
 
     def sample_set_to_sample_gcn_df(self,sample_set):
         print("make results")
@@ -281,52 +336,14 @@ class Updater:
         self.sample_set_list.append(samples_set_df)
 
 
-    def update_network(self,i):
-        print('update agent %d'%i)
-        self.agents[i].train_network(self.dic_exp_conf)
-        if self.dic_traffic_env_conf["ONE_MODEL"]:
-            if self.dic_exp_conf["PRETRAIN"]:
-                self.agents[i].q_network.save(os.path.join(self.dic_path["PATH_TO_PRETRAIN_MODEL"],
-                                             "{0}.h5".format(self.dic_exp_conf["TRAFFIC_FILE"][0]))
-                                             )
-                shutil.copy(os.path.join(self.dic_path["PATH_TO_PRETRAIN_MODEL"],
-                                         "{0}.h5".format(self.dic_exp_conf["TRAFFIC_FILE"][0])),
-                            os.path.join(self.dic_path["PATH_TO_MODEL"], "round_0.h5"))
-            elif self.dic_exp_conf["AGGREGATE"]:
-                self.agents[i].q_network.save("model/initial", "aggregate.h5")
-                shutil.copy("model/initial/aggregate.h5",
-                            os.path.join(self.dic_path["PATH_TO_MODEL"], "round_0.h5"))
-            else:
-                self.agents[i].save_network("round_{0}".format(self.cnt_round))
-
-        else:
-            if self.dic_exp_conf["PRETRAIN"]:
-                self.agents[i].q_network.save(os.path.join(self.dic_path["PATH_TO_PRETRAIN_MODEL"],
-                                             "{0}_inter_{1}.h5".format(self.dic_exp_conf["TRAFFIC_FILE"][0],
-                                                                       self.agents[i].intersection_id))
-                                             )
-                shutil.copy(os.path.join(self.dic_path["PATH_TO_PRETRAIN_MODEL"],
-                                         "{0}_inter_{1}.h5".format(self.dic_exp_conf["TRAFFIC_FILE"][0],
-                                                                   self.agents[i].intersection_id)),
-                            os.path.join(self.dic_path["PATH_TO_MODEL"], "round_0.h5"))
-            elif self.dic_exp_conf["AGGREGATE"]:
-                self.agents[i].q_network.save("model/initial", "aggregate_inter_{0}.h5".format(self.agents[i].intersection_id))
-                shutil.copy("model/initial/aggregate.h5",
-                            os.path.join(self.dic_path["PATH_TO_MODEL"], "round_0_inter_{0}.h5".format(self.agents[i].intersection_id)))
-            else:
-                self.agents[i].save_network("round_{0}_inter_{1}".format(self.cnt_round,self.agents[i].intersection_id))
 
     def update_network_for_agents(self):
-        if self.dic_traffic_env_conf["ONE_MODEL"]:
-            self.update_network(0)
-        else:
-            print("update_network_for_agents", self.dic_traffic_env_conf['NUM_AGENTS'])
-            for i in range(self.dic_traffic_env_conf['NUM_AGENTS']):
-                self.update_network(i)
-
-
-
-
+        return update_network_for_agents(
+            self.dic_exp_conf,
+            self.dic_traffic_env_conf,
+            self.dic_path,
+            self.agents,
+            self.cnt_round)
 
 if __name__=="__main__":
 

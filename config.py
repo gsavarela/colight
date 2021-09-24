@@ -36,7 +36,7 @@ DIC_EXP_CONF = {
         "cross.2phases_rou01_equal_450.xml"
     ],
     "MODEL_NAME": "SimpleDQN",
-    "NUM_ROUNDS": 200,
+    "NUM_ROUNDS": 5,
     "NUM_GENERATORS": 3,
     "LIST_MODEL":
         ["Fixedtime", "SOTL", "Deeplight", "SimpleDQN"],
