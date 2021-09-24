@@ -20,11 +20,6 @@ from keras.utils import np_utils,to_categorical
 from keras.engine.topology import Layer
 from keras.callbacks import EarlyStopping, TensorBoard
 
-# SEED=6666
-# random.seed(SEED)
-# np.random.seed(SEED)
-# tf.set_random_seed(SEED)
-
 
 class RepeatVector3D(Layer):
     def __init__(self,times,**kwargs):
@@ -60,6 +55,7 @@ class CoLightAgent(Agent):
         2. #neighbors: 5 (1 itself + W,E,S,N directions)
         3. compute len_features
         4. self.num_actions
+        5. if cnt_round > 0, attempts to load model.
         """
         super(CoLightAgent, self).__init__(
             dic_agent_conf, dic_traffic_env_conf, dic_path,intersection_id)

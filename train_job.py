@@ -7,6 +7,7 @@ from trainer import Trainer
 # from updater import Updater
 from multiprocessing import Process, Pool, Manager
 from model_pool import ModelPool
+from copy import deepcopy
 import random
 import pickle
 import model_test
@@ -132,9 +133,17 @@ class TrainJob:
 
     def trainer_wrapper(self, cnt_round, cnt_gen, dic_path, dic_exp_conf, dic_agent_conf, dic_traffic_env_conf,
                           best_round=None):
+
+        gen_dic_path = deepcopy(dic_path)
+        # Separates the model per generator
+        gen_dic_path['PATH_TO_MODEL'] += f'/generator_{cnt_gen}/'
+
+        if not os.path.exists(gen_dic_path['PATH_TO_MODEL'] ):
+            os.makedirs(gen_dic_path['PATH_TO_MODEL'])
+
         trainer = Trainer(cnt_round=cnt_round,
                               cnt_gen=cnt_gen,
-                              dic_path=dic_path,
+                              dic_path=gen_dic_path,
                               dic_exp_conf=dic_exp_conf,
                               dic_agent_conf=dic_agent_conf,
                               dic_traffic_env_conf=dic_traffic_env_conf,

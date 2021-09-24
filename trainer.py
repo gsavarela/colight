@@ -43,51 +43,53 @@ class Trainer:
         self.env.reset()
         self.dic_traffic_env_conf['traffic_light_phases'] = self.env.traffic_light_phases
 
-        # every trainer's output
-        # trainer for pretraining
-        # Todo pretrain with intersection_id
-        if self.dic_exp_conf["PRETRAIN"]:
+        start_time = time.time()
 
-            self.agent_name = self.dic_exp_conf["PRETRAIN_MODEL_NAME"]
-            self.agent = DIC_AGENTS[self.agent_name](
-                dic_agent_conf=self.dic_agent_conf,
-                dic_traffic_env_conf=self.dic_traffic_env_conf,
-                dic_path=self.dic_path,
-                cnt_round=self.cnt_round,
-                best_round=best_round,
+        for i in range(dic_traffic_env_conf['NUM_AGENTS']):
+            agent_name = self.dic_exp_conf["MODEL_NAME"]
+            # FIXME: 'True' phase
+            intersec = self.env.list_intersection[i]
+            #the CoLight_Signal needs to know the lane adj in advance, from environment's intersection list
+            if agent_name=='CoLight_Signal':
+                agent = DIC_AGENTS[agent_name](
+                    dic_agent_conf=self.dic_agent_conf,
+                    dic_traffic_env_conf=self.dic_traffic_env_conf,
+                    dic_path=self.dic_path,
+                    cnt_round=self.cnt_round,
+                    best_round=best_round,
+                    intersection=intersec,
+                    intersection_id=str(i)
+                )
+            else:
+                agent = DIC_AGENTS[agent_name](
+                    dic_agent_conf=self.dic_agent_conf,
+                    dic_traffic_env_conf=self.dic_traffic_env_conf,
+                    dic_path=self.dic_path,
+                    cnt_round=self.cnt_round,
+                    best_round=best_round,
+                    intersection=intersec,
+                    intersection_id=str(i)
+                )
+            self.agents[i] = agent
+
+        # Load pre-pretrained model for previous episode. 
+        if self.cnt_round > 0:
+            import ipdb; ipdb.set_trace()
+            load_sample_for_agents(
+                self.dic_agent_conf,
+                self.dic_exp_conf,
+                self.dic_traffic_env_conf,
+                self.dic_path,
+                self.agents
             )
-
-        else:
-
-            start_time = time.time()
-
-            for i in range(dic_traffic_env_conf['NUM_AGENTS']):
-                agent_name = self.dic_exp_conf["MODEL_NAME"]
-                # FIXME: 'True' phase
-                intersec = self.env.list_intersection[i]
-                #the CoLight_Signal needs to know the lane adj in advance, from environment's intersection list
-                if agent_name=='CoLight_Signal':
-                    agent = DIC_AGENTS[agent_name](
-                        dic_agent_conf=self.dic_agent_conf,
-                        dic_traffic_env_conf=self.dic_traffic_env_conf,
-                        dic_path=self.dic_path,
-                        cnt_round=self.cnt_round,
-                        best_round=best_round,
-                        intersection=intersec,
-                        intersection_id=str(i)
-                    )
-                else:
-                    agent = DIC_AGENTS[agent_name](
-                        dic_agent_conf=self.dic_agent_conf,
-                        dic_traffic_env_conf=self.dic_traffic_env_conf,
-                        dic_path=self.dic_path,
-                        cnt_round=self.cnt_round,
-                        best_round=best_round,
-                        intersection=intersec,
-                        intersection_id=str(i)
-                    )
-                self.agents[i] = agent
-            print("Create intersection agent time: ", time.time()-start_time)
+            update_network_for_agents(
+                self.dic_exp_conf,
+                self.dic_traffic_env_conf,
+                self.dic_path,
+                self.agents,
+                self.cnt_round
+            )
+        print("Create intersection agent time: ", time.time()-start_time)
 
     def train(self):
 
@@ -138,6 +140,7 @@ class Trainer:
             if step_num % train_interval == 0:
                 print(f'refresh :{int(step_num / train_interval)}, step: {step_num}')
                 self.env.batch_log(0, self.dic_traffic_env_conf['NUM_INTERSECTIONS'])
+
                 self.make_samples()
                 load_sample_for_agents(
                     self.dic_agent_conf,

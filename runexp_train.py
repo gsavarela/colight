@@ -11,11 +11,11 @@ import matplotlib
 
 from script import get_traffic_volume
 
-multi_process = False
+multi_process = True
 TOP_K_ADJACENCY=-1
 TOP_K_ADJACENCY_LANE=-1
 PRETRAIN=False
-NUM_GENERATORS=30
+NUM_GENERATORS=5
 NUM_ROUNDS=20
 RUN_COUNTS=21600
 EARLY_STOP=False
@@ -159,7 +159,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
 
     process_list = []
     n_workers = workers     #len(traffic_file_list)
-    multi_process = workers > 1
+    multi_process = True
 
     global PRETRAIN
     global NUM_ROUNDS
