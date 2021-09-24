@@ -14,13 +14,13 @@ from lit_agent import LitAgent
 from anon_env import AnonEnv
 from baseline.sliding_formula_agent import SlidingFormulaAgent
 
-DIC_SLIDINGFORMULA_AGENT_CONF = { 
-    "DAY_TIME": 3600, 
-    "UPDATE_PERIOD": 300, 
-    "FIXED_TIME": [30, 30], 
-    "ROUND_UP": 5, 
+DIC_SLIDINGFORMULA_AGENT_CONF = {
+    "DAY_TIME": 3600,
+    "UPDATE_PERIOD": 300,
+    "FIXED_TIME": [30, 30],
+    "ROUND_UP": 5,
     "PHASE_TO_LANE": [[0, 1], [3, 4], [6, 7], [9, 10]],
-    "MIN_PHASE_TIME": 5, 
+    "MIN_PHASE_TIME": 5,
     "TRAFFIC_FILE": [ "cross.2phases_rou01_equal_450.xml" ]
     }
 
@@ -35,9 +35,10 @@ DIC_EXP_CONF = {
     "TRAFFIC_FILE": [
         "cross.2phases_rou01_equal_450.xml"
     ],
-    "MODEL_NAME": "SimpleDQN",
-    "NUM_ROUNDS": 5,
-    "NUM_GENERATORS": 3,
+    "MODEL_NAME": "Colight",
+    "NUM_ROUNDS": 20,
+    "NUM_GENERATORS": 30,
+    "NUM_TRAIN_UPDATES": 10,
     "LIST_MODEL":
         ["Fixedtime", "SOTL", "Deeplight", "SimpleDQN"],
     "LIST_MODEL_NEED_TO_UPDATE":
