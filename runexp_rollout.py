@@ -23,7 +23,9 @@ multi_process = False
 TOP_K_ADJACENCY=-1
 TOP_K_ADJACENCY_LANE=-1
 PRETRAIN=True
+NUM_GENERATORS=30
 NUM_ROUNDS=1
+RUN_COUNTS=21600
 EARLY_STOP=False
 NEIGHBOR=False
 SAVEREPLAY=False
@@ -33,12 +35,11 @@ ANON_PHASE_REPRE=[]
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    # The file folder to create/log in
-    parser.add_argument("--memo", type=str, default='0515_afternoon_Colight_6_6_bi')#1_3,2_2,3_3,4_4
+    parser.add_argument("--memo", type=str, default='0924_Colight_Lisbon_1_3')#1_3,2_2,3_3,4_4
     parser.add_argument("--gui", type=bool, default=False)
-    parser.add_argument("--road_net", type=str, default='6_6')#'1_2') # which road net you are going to run
-    parser.add_argument("--volume", type=str, default='300')#'300'
-    parser.add_argument("--suffix", type=str, default="0.3_bi")#0.3
+    parser.add_argument("--road_net", type=str, default='1_3')#'1_2') # which road net you are going to run
+    parser.add_argument("--volume", type=str, default='lisbon')#'300'
+    parser.add_argument("--suffix", type=str, default="uniform")#0.3
 
     global hangzhou_archive
     hangzhou_archive=False
@@ -63,13 +64,12 @@ def parse_args():
     global PRETRAIN
     PRETRAIN=True
     parser.add_argument("--mod", type=str, default='CoLight')#SimpleDQN,SimpleDQNOne,GCN,CoLight,Lit
-    parser.add_argument("--cnt",type=int, default=3600)#3600
-    parser.add_argument("--gen",type=int, default=4)#4
+    parser.add_argument("--cnt",type=int, default=RUN_COUNTS)#3600
+    parser.add_argument("--gen",type=int, default=NUM_GENERATORS)#4
 
     parser.add_argument("-all", action="store_true", default=False)
-    parser.add_argument("--workers",type=int, default=1)
+    parser.add_argument("--workers",type=int, default=5)
     parser.add_argument("--onemodel",type=bool, default=False)
-
     parser.add_argument("--visible_gpu", type=str, default="-1")
     global ANON_PHASE_REPRE
     tt=parser.parse_args()
