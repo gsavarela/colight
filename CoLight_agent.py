@@ -49,7 +49,9 @@ class CoLightAgent(Agent):
         best_round=None,
         bar_round=None,
         intersection=None,
-        intersection_id="0"):
+        intersection_id="0",
+        cnt_gen=None
+        ):
         """
         1. compute the (dynamic) static Adjacency matrix, compute for each state
         2. #neighbors: 5 (1 itself + W,E,S,N directions)
@@ -70,6 +72,7 @@ class CoLightAgent(Agent):
         self.vec=np.zeros((1,self.num_neighbors))
         self.vec[0][0]=1
         self.seed = dic_traffic_env_conf['SEED']
+        self.cnt_gen = cnt_gen
 
 
         random.seed(self.seed)
@@ -83,7 +86,7 @@ class CoLightAgent(Agent):
         self.len_feature=self.compute_len_feature()
         self.memory = self.build_memory()
 
-        if cnt_round == 0: 
+        if cnt_round == 0:
             # initialization
             self.q_network = self.build_network()
             if os.listdir(self.dic_path["PATH_TO_MODEL"]):
@@ -292,12 +295,9 @@ class CoLightAgent(Agent):
                         if feature_name == "cur_phase":
                             if len(state[i][j][feature_name])==1:
                                 #choose_action
-                                # FIXME: Custom phases
-                                # observation.extend(self.dic_traffic_env_conf['PHASE'][self.dic_traffic_env_conf['SIMULATOR_TYPE']][state[i][j][feature_name][0]])
                                 phase_index = state[i][j][feature_name][0]
                                 phases = self.intersection.list_phases
                                 # jinan
-                                # assert len(phases[phase_index]) == 12
                                 observation.extend(phases[phase_index])
                             else:
                                 observation.extend(state[i][j][feature_name])

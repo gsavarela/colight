@@ -16,8 +16,9 @@ TOP_K_ADJACENCY=-1
 TOP_K_ADJACENCY_LANE=-1
 PRETRAIN=False
 NUM_GENERATORS=5
-NUM_ROUNDS=20
+NUM_ROUNDS=5
 RUN_COUNTS=21600
+NUM_TRAIN_UPDATES=10
 EARLY_STOP=False
 NEIGHBOR=False
 SAVEREPLAY=False
@@ -137,7 +138,11 @@ def train_job_wrapper(dic_exp_conf, dic_agent_conf, dic_traffic_env_conf, dic_pa
     print("train_job_wrapper end")
     return
 
-
+def wait_process_done(f, fid, wait_time=0.001):
+    # Monitor the status of another process 
+    if not f.is_alive():
+        time.sleep(0.001)
+    print("traffic finish join", fid)
 
 def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, onemodel):
 
@@ -175,7 +180,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
 
             "NUM_ROUNDS": NUM_ROUNDS,
             "NUM_GENERATORS": gen,
-            "NUM_TRAIN_UPDATES":10,
+            "NUM_TRAIN_UPDATES": NUM_TRAIN_UPDATES,
 
             "MODEL_POOL": False,
             "NUM_BEST_MODEL": 3,
@@ -484,7 +489,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             for k in range(i, i_max):
                 print("traffic to join", k)
                 process_list[k].join()
-                print("traffic finish join", k)
+                wait_process_done(process_list[k], k)
 
 
     return memo

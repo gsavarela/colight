@@ -2,12 +2,15 @@ import os
 import copy
 import time
 import sys
+import glob
+import pickle
 from multiprocessing import Process, Pool
+from shutil import move
 
 from anon_env import AnonEnv
 from config import DIC_AGENTS
 from updater import load_sample_for_agents, update_network_for_agents
-from construct_sample import ConstructSample
+from sampler import Sampler
 
 class Trainer:
     def __init__(self, cnt_round, cnt_gen, dic_path, dic_exp_conf, dic_agent_conf, dic_traffic_env_conf, best_round=None):
@@ -27,11 +30,10 @@ class Trainer:
         self.dic_agent_conf['SEED'] = self.seed
         self.dic_traffic_env_conf['SEED'] = self.seed
 
-        if self.dic_exp_conf["PRETRAIN"]:
-            self.path_to_log = os.path.join(self.dic_path["PATH_TO_PRETRAIN_WORK_DIRECTORY"], "train_round",
-                                            "round_" + str(self.cnt_round), "generator_" + str(self.cnt_gen))
-        else:
-            self.path_to_log = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round", "round_"+str(self.cnt_round), "generator_"+str(self.cnt_gen))
+
+        base_to_log = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round")
+
+        self.path_to_log = os.path.join(base_to_log, f"round_{self.cnt_round}", f"generator_{self.cnt_gen}")
         if not os.path.exists(self.path_to_log):
             os.makedirs(self.path_to_log)
 
@@ -44,6 +46,16 @@ class Trainer:
         self.dic_traffic_env_conf['traffic_light_phases'] = self.env.traffic_light_phases
 
         start_time = time.time()
+
+        # Move samples from previous round,
+        # That belong to the same generator.
+        # Instanciates sampler
+        self.sampler = Sampler(
+            path_to_samples=base_to_log,
+            cnt_round=self.cnt_round,
+            dic_traffic_env_conf=self.dic_traffic_env_conf,
+            cnt_gen=self.cnt_gen
+        )
 
         for i in range(dic_traffic_env_conf['NUM_AGENTS']):
             agent_name = self.dic_exp_conf["MODEL_NAME"]
@@ -68,27 +80,11 @@ class Trainer:
                     cnt_round=self.cnt_round,
                     best_round=best_round,
                     intersection=intersec,
-                    intersection_id=str(i)
+                    intersection_id=str(i),
+                    cnt_gen=cnt_gen
                 )
             self.agents[i] = agent
 
-        # Load pre-pretrained model for previous episode. 
-        if self.cnt_round > 0:
-            import ipdb; ipdb.set_trace()
-            load_sample_for_agents(
-                self.dic_agent_conf,
-                self.dic_exp_conf,
-                self.dic_traffic_env_conf,
-                self.dic_path,
-                self.agents
-            )
-            update_network_for_agents(
-                self.dic_exp_conf,
-                self.dic_traffic_env_conf,
-                self.dic_path,
-                self.agents,
-                self.cnt_round
-            )
         print("Create intersection agent time: ", time.time()-start_time)
 
     def train(self):
@@ -104,6 +100,7 @@ class Trainer:
         train_interval = int(step_max / self.dic_exp_conf["NUM_TRAIN_UPDATES"])
         reset_env_time = time.time() - reset_env_start_time
         running_start_time = time.time()
+
         while True:
             action_list = []
             step_start_time = time.time()
@@ -138,16 +135,18 @@ class Trainer:
 
             # Every refresh period.
             if step_num % train_interval == 0:
-                print(f'refresh :{int(step_num / train_interval)}, step: {step_num}')
                 self.env.batch_log(0, self.dic_traffic_env_conf['NUM_INTERSECTIONS'])
 
-                self.make_samples()
+                self.sampler.sample()
                 load_sample_for_agents(
                     self.dic_agent_conf,
                     self.dic_exp_conf,
                     self.dic_traffic_env_conf,
                     self.dic_path,
-                    self.agents
+                    self.agents,
+                    self.cnt_round,
+                    self.cnt_gen,
+                    num_prev_round=2
                 )
                 update_network_for_agents(
                     self.dic_exp_conf,
@@ -172,17 +171,28 @@ class Trainer:
         print("log_time: ", log_time)
         return
 
-    def make_samples(self):
-        print("==============  make samples =============")
-        # make samples and determine which samples are good
-        making_samples_start_time = time.time()
 
-        train_round = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round")
-        if not os.path.exists(train_round):
-            os.makedirs(train_round)
-        cs = ConstructSample(path_to_samples=train_round, cnt_round=self.cnt_round,
-                             dic_traffic_env_conf=self.dic_traffic_env_conf)
-        cs.make_reward_for_system()
-        # EvaluateSample()
-        making_samples_end_time = time.time()
-        making_samples_total_time = making_samples_end_time - making_samples_start_time
+    # TODO: TO really append to a pickled object
+    # We have to keep reading until EOF. -- do that with
+    # samples_inter in order to avoid rewrites.
+    # Move this this to sampler.
+    # def make_samples(self):
+    #     print("==============  make samples =============")
+    #     # make samples and determine which samples are good
+    #     making_samples_start_time = time.time()
+    #     # train_round = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round")
+    #     # if not os.path.exists(train_round):
+    #     #     os.makedirs(train_round)
+
+    #     for i in range(self.dic_traffic_env_conf['NUM_INTERSECTIONS']):
+    #         target_dir = f'generator_{self.cnt_gen}'
+    #         self.sampler.load_data_for_system(target_dir)
+    #         self.sampler.make_reward(target_dir, i)
+    #         target_path = f'{self.sampler.path_to_samples}/{target_dir}/samples_inter_{i}.pkl'
+    #         with open(target_path, 'ab') as f:
+    #             pickle.dump(self.sampler.samples_all_intersection[i], f, -1)
+
+
+    #     # EvaluateSample()
+    #     making_samples_end_time = time.time()
+    #     making_samples_total_time = making_samples_end_time - making_samples_start_time

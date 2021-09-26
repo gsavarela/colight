@@ -18,7 +18,6 @@ class ConstructSample:
         self.samples_all_intersection = [None]*self.dic_traffic_env_conf['NUM_INTERSECTIONS']
 
     def load_data(self, folder, i):
-
         try:
             f_logging_data = open(os.path.join(self.path_to_samples, folder, "inter_{0}.pkl".format(i)), "rb")
             logging_data = pickle.load(f_logging_data)
