@@ -392,23 +392,6 @@ class AnonEnv:
         return ret
 
 
-    def load_roadnet(self, roadnetFile=None):
-        print("Start load roadnet")
-        start_time = time.time()
-        if not roadnetFile:
-            roadnetFile = "roadnet_1_1.json"
-        #print("/n/n", os.path.join(self.path_to_work_directory, roadnetFile))
-        self.eng.load_roadnet(os.path.join(self.path_to_work_directory, roadnetFile))
-        print("successfully load roadnet:{0}, time: {1}".format(roadnetFile,time.time()-start_time))
-
-    def load_flow(self, flowFile=None):
-        print("Start load flowFile")
-        start_time = time.time()
-        if not flowFile:
-            flowFile = "flow_1_1.json"
-        self.eng.load_flow(os.path.join(self.path_to_work_directory, flowFile))
-        print("successfully load flowFile: {0}, time: {1}".format(flowFile, time.time()-start_time))
-
     def _check_episode_done(self, list_state):
 
         # ======== to implement ========
