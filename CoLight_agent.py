@@ -164,16 +164,11 @@ class CoLightAgent(Agent):
             if "adjacency" in feature_name:
                 continue
             elif "cur_phase" in feature_name:
-                # FIXME: 'True' phase
-                # len_feature += feature_dict["D_"+feature_name.upper()]
-                feature_num += len(self.intersection.list_phases[1])
+                if self.dic_traffic_env_conf['BINARY_PHASE_EXPANSION']:
+                    feature_num += len(self.intersection.list_phases[1])
+                else:
+                    feature_num += 1
             elif feature_name in ("lane_num_vehicle", "delay"):
-                # FIXME: Hardcode: Lisbon/1_1 only 6 incoming roadlinks
-                # len_feature += (6,)
-
-                # FIXME: Roadnet settings:
-                # This assumes that there are always 12 incoming lanes.
-                # lane_num_vehicle = feature_dict["D_"+feature_name.upper()][0]*self.num_lanes
                 feature_num += len(self.intersection.list_entering_lanes)
             else:
                 feature_key = f'D_{feature_name.upper()}'
@@ -295,7 +290,7 @@ class CoLightAgent(Agent):
                     for feature_name in self.dic_traffic_env_conf["LIST_STATE_FEATURE"]:
                         if 'adjacency' in feature_name:
                             continue
-                        if feature_name == "cur_phase":
+                        if feature_name == "cur_phase" and self.dic_traffic_env_conf['BINARY_PHASE_EXPANSION']:
                             if len(state[i][j][feature_name])==1:
                                 #choose_action
                                 phase_index = state[i][j][feature_name][0]

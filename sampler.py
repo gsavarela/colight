@@ -114,8 +114,6 @@ class Sampler(object):
             for key, value in state["state"].items():
                 if key in features:
                     if "cur_phase" in key:
-                        # FIXME: 'True' phase
-                        # state_after_selection[key] = self.dic_traffic_env_conf['PHASE'][self.dic_traffic_env_conf['SIMULATOR_TYPE']][value[0]]
                         state_after_selection[key] = traffic_light_phases[value[0]]
                     else:
                         state_after_selection[key] = value
@@ -209,7 +207,6 @@ class Sampler(object):
 
         if i % 100 == 0:
             print("make reward for inter {0} in folder {1}".format(i, folder))
-
         list_samples = []
         try:
             total_time = int(self.logging_data_list_per_gen[i][-1]['time'] + 1)
