@@ -23,11 +23,10 @@ from copy import deepcopy
 # prevent randomization
 PYTHONHASHSEED=-1
 
-
 def simple_hash(x):
     return hash(x) % (11 * 255)
 
-def g_lst(): return []
+def g_list(): return []
 
 class AnonEnv:
     list_intersection_id = [
@@ -43,7 +42,7 @@ class AnonEnv:
         self.list_inter_log = None
         self.list_lanes = None
         self.system_states = None
-        self.info_dict = defaultdict(g_lst)
+        self.info_dict = defaultdict(g_list)
         self.emission = []
         self.feature_name_for_neighbor = self._reduce_duplicates(self.dic_traffic_env_conf["LIST_STATE_FEATURE"])
         self.seed = dic_traffic_env_conf['SEED']
@@ -59,6 +58,20 @@ class AnonEnv:
             path_to_log_file = os.path.join(self.path_to_log, "inter_{0}.pkl".format(inter_ind))
             f = open(path_to_log_file, "wb")
             f.close()
+
+        # Load previous information dict -- if exists
+        self.info_log_path = Path(self.path_to_work_directory)
+        if ('train_round' in self.path_to_log):
+            self.info_log_path = self.info_log_path / 'train_logs'
+        else:
+            self.info_log_path = self.info_log_path / 'rollout_logs'
+        self.info_log_path.mkdir(exist_ok=True)
+        self.info_log_path = self.info_log_path  / self.path_to_log.split('/')[-1]
+        if self.info_log_path.exists():
+            with (self.info_log_path / 'train_log.json').open('r') as f:
+                self.info_dict = json.load(f)
+        else:
+            self.info_log_path.mkdir(exist_ok=True)
 
     @property
     def traffic_light_phases(self):
@@ -323,6 +336,7 @@ class AnonEnv:
         self.info_dict['rewards'].append({
             k: -sum(v[2:]) for k, v in self.info_dict['states'][-1].items()
         })
+        self.info_dict['timestep'].append(self.get_current_time())
 
     def _update_emission(self):
         """Builds sumo like emission file"""
@@ -447,12 +461,12 @@ class AnonEnv:
             f.close()
 
     def info_log(self):
-        info_log_path = Path(self.path_to_log) / 'train_log.json'
+        info_log_path = Path(self.info_log_path) / 'train_log.json'
         with info_log_path.open('w') as f: json.dump(self.info_dict, f)
 
     def emission_log(self):
         if self.dic_traffic_env_conf['EMIT']:
-            emission_log_path = Path(self.path_to_log) / 'emission_log.json'
+            emission_log_path = Path(self.info_log_path) / 'emission_log.json'
             with emission_log_path.open('w') as f: json.dump(self.emission, f)
 
     def bulk_log_multi_process(self, batch_size=100):
