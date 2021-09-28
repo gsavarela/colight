@@ -1,5 +1,11 @@
 '''
 Intersection object.
+
+    * Stores a pointer to engine.
+    * Translates RL actions to control actions.
+    * Computes features.
+
+    TODO: Load flow.json to map maximum speeds
 '''
 import os
 
@@ -425,6 +431,7 @@ class Intersection:
         dic_feature["lane_num_vehicle"] = self._get_lane_num_vehicle(self.list_entering_lanes)
         dic_feature["pressure"] = None # [self._get_pressure()]
 
+        dic_feature["delay"] = self._get_delay(simulator_state)
         if self.fast_compute:
             dic_feature["coming_vehicle"] = None
             dic_feature["leaving_vehicle"] = None
@@ -486,6 +493,21 @@ class Intersection:
 
 
         return coming_distribution
+
+    def _get_delay(self, simulator_state):
+        ''' Computes the delay as an exponential decay from max_speed.'''
+        speeds = simulator_state['get_vehicle_speed']
+        vehicles = simulator_state['get_lane_vehicles']
+
+        ret = []
+        for laneid in self.list_entering_lanes:
+            max_speed = 11.11 # Get from flow.
+            delay_list = \
+                [delay(speeds[vehid] / max_speed) for vehid in vehicles[laneid]]
+            ret.append(float(np.round(np.sum(delay_list), 4)))
+        return ret
+
+
 
     def _get_leaving_vehicles(self, simulator_state):
         leaving_distribution = []
@@ -651,6 +673,7 @@ class Intersection:
         dic_reward["sum_num_vehicle_been_stopped_thres1"] = np.sum(self.dic_feature["lane_num_vehicle_been_stopped_thres1"])
 
         dic_reward['pressure'] = None # np.sum(self.dic_feature["pressure"])
+        dic_reward['sum_delays'] = np.sum(self.dic_feature['delay'])
 
         reward = 0
         for r in dic_reward_info:
@@ -658,3 +681,5 @@ class Intersection:
                 reward += dic_reward_info[r] * dic_reward[r]
         return reward
 
+def delay(x):
+    return np.exp(-5 * x)

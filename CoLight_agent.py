@@ -163,11 +163,11 @@ class CoLightAgent(Agent):
         for feature_name in self.dic_traffic_env_conf["LIST_STATE_FEATURE"]:
             if "adjacency" in feature_name:
                 continue
-            elif "phase" in feature_name:
+            elif "cur_phase" in feature_name:
                 # FIXME: 'True' phase
                 # len_feature += feature_dict["D_"+feature_name.upper()]
                 feature_num += len(self.intersection.list_phases[1])
-            elif feature_name=="lane_num_vehicle":
+            elif feature_name in ("lane_num_vehicle", "delay"):
                 # FIXME: Hardcode: Lisbon/1_1 only 6 incoming roadlinks
                 # len_feature += (6,)
 
@@ -175,6 +175,9 @@ class CoLightAgent(Agent):
                 # This assumes that there are always 12 incoming lanes.
                 # lane_num_vehicle = feature_dict["D_"+feature_name.upper()][0]*self.num_lanes
                 feature_num += len(self.intersection.list_entering_lanes)
+            else:
+                feature_key = f'D_{feature_name.upper()}'
+                feature_num +=  feature_dict[feature_key][0]
         return feature_num
 
     """
@@ -301,7 +304,8 @@ class CoLightAgent(Agent):
                                 observation.extend(phases[phase_index])
                             else:
                                 observation.extend(state[i][j][feature_name])
-                        elif feature_name=="lane_num_vehicle":
+                        else:
+                            # tested ("lane_num_vehicle", "time_this_phase")
                             observation.extend(state[i][j][feature_name])
                     feature.append(observation)
                     adj.append(state[i][j]['adjacency_matrix'])

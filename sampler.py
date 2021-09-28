@@ -150,6 +150,7 @@ class Sampler(object):
         reward["sum_num_vehicle_been_stopped_thres1"] = np.sum(rs["lane_num_vehicle_been_stopped_thres1"])
         ##TODO pressure
         reward['pressure'] = np.sum(rs["pressure"])
+        reward['sum_delays'] = np.sum(rs["delay"])
         return reward
 
 
@@ -167,8 +168,7 @@ class Sampler(object):
         return r
 
 
-    def construct_reward(self,rewards_components,time, i):
-
+    def construct_reward(self, rewards_components, time, i):
         rs = self.logging_data_list_per_gen[i][time + self.measure_time - 1]
         assert time + self.measure_time - 1 == rs["time"]
         rs = self.get_reward_from_features(rs['state'])
