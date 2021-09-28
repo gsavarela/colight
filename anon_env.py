@@ -723,7 +723,8 @@ class AnonEnv:
                                                             'roadlinks_incoming': [],
                                                             'roadlinks_outgoing': [],
                                                             'roadlinks_num_lanes': {},
-                                                            'light_phases': {}
+                                                            'light_phases': {},
+                                                            'max_speed': {}
                                                             }
 
             top_k = self.dic_traffic_env_conf["TOP_K_ADJACENCY"]
@@ -837,9 +838,10 @@ class AnonEnv:
                 traffic_light_node_dict[i]['total_lane_num'] = total_lane_num
                 traffic_light_node_dict[i]['adjacency_matrix_lane'] = adjacency_matrix_lane
                 traffic_light_node_dict[i]['light_phases'].update(roadnet.light_phases_dict[i])
-
-
-
+                for roadlink in traffic_light_node_dict[i]['roadlinks_incoming']:
+                    traffic_light_node_dict[i]['max_speed'].update({
+                        k:v for k, v in roadnet.max_speed.items() if roadlink in k
+                    })
         return traffic_light_node_dict
 
 

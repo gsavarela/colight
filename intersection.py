@@ -24,6 +24,7 @@ class Intersection:
         self.inter_id = inter_id
         self.inter_name = "intersection_{0}_{1}".format(inter_id[0], inter_id[1])
         self.dic_traffic_env_conf = dic_traffic_env_conf # TODO: Remove me
+        self.max_speed = light_id_dict['max_speed']
 
         self.eng = eng
 
@@ -97,7 +98,6 @@ class Intersection:
         # FIXME: Build phases
         # self.list_phases = dic_traffic_env_conf["PHASE"][dic_traffic_env_conf['SIMULATOR_TYPE']]
         self.list_phases = light_id_dict['light_phases']['phase_plan_2']
-
 
         self.adjacency_row = light_id_dict['adjacency_row']
         self.neighbor_ENWS = light_id_dict['neighbor_ENWS']
@@ -501,7 +501,7 @@ class Intersection:
 
         ret = []
         for laneid in self.list_entering_lanes:
-            max_speed = 11.11 # Get from flow.
+            max_speed = self.max_speed[laneid]
             delay_list = \
                 [delay(speeds[vehid] / max_speed) for vehid in vehicles[laneid]]
             ret.append(float(np.round(np.sum(delay_list), 4)))

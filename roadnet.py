@@ -113,6 +113,12 @@ class RoadNet:
 
         self.net_lane_dict = lane_dict
 
+        self.max_speed = {
+            f'{road["id"]}_{i}': lane['maxSpeed']
+            for road in self.roadnet_dict['roads']
+            for i, lane in enumerate(road['lanes'])
+        }
+
     def generate_light_phases_dict(self):
         """ Builds phase plans
 
