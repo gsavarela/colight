@@ -47,6 +47,9 @@ class AnonEnv:
         self.feature_name_for_neighbor = self._reduce_duplicates(self.dic_traffic_env_conf["LIST_STATE_FEATURE"])
         self.seed = dic_traffic_env_conf['SEED']
 
+        # starts engine
+        self.eng = None; self.engine
+
         # check min action time
         if self.dic_traffic_env_conf["MIN_ACTION_TIME"] <= self.dic_traffic_env_conf["YELLOW_TIME"]:
             print ("MIN_ACTION_TIME should include YELLOW_TIME")
@@ -73,36 +76,48 @@ class AnonEnv:
         else:
             self.info_log_path.mkdir(exist_ok=True)
 
+
     @property
     def traffic_light_phases(self):
-        if self.list_intersection is None: return None
+        if self.list_intersection is None: return
         return [itr.list_phases for itr in self.list_intersection]
+
+    @property
+    def config_path(self):
+        if self.path_to_work_directory is None: return
+        return Path(self.path_to_work_directory) / 'cityflow.config'
+
+    @property
+    def engine(self):
+        if self.config_path is None: return
+        # Assumption: enviroments cannot be generated at the same time.
+        # put threads to sleep before training.
+        if not self.config_path.exists():
+            print("Define a new engine: Seed must be overriden")
+            config = {
+                "interval": self.dic_traffic_env_conf["INTERVAL"],
+                "seed": 0,
+                "laneChange": False,
+                "dir": self.path_to_work_directory+"/",
+                "roadnetFile": self.dic_traffic_env_conf["ROADNET_FILE"],
+                "flowFile": self.dic_traffic_env_conf["TRAFFIC_FILE"],
+                "rlTrafficLight": self.dic_traffic_env_conf["RLTRAFFICLIGHT"],
+                "saveReplay": self.dic_traffic_env_conf["SAVEREPLAY"],
+                "roadnetLogFile": "frontend/web/roadnetLogFile.json",
+                "replayLogFile": "frontend/web/replayLogFile.txt"
+            }
+            # BEWARE: This operation can lead to race conditions.
+            with self.config_path.open("w") as f: json.dump(config, f)
+
+        if self.eng is None:
+            self.eng = engine.Engine(self.config_path.as_posix(), thread_num=1)
+            self.eng.set_random_seed(self.seed)
+        return self.eng
 
     def reset(self):
 
-        print("# self.eng.reset() to be implemented")
-
-        cityflow_config = {
-            "interval": self.dic_traffic_env_conf["INTERVAL"],
-            "seed": self.seed,
-            "laneChange": False,
-            "dir": self.path_to_work_directory+"/",
-            "roadnetFile": self.dic_traffic_env_conf["ROADNET_FILE"],
-            "flowFile": self.dic_traffic_env_conf["TRAFFIC_FILE"],
-            "rlTrafficLight": self.dic_traffic_env_conf["RLTRAFFICLIGHT"],
-            "saveReplay": self.dic_traffic_env_conf["SAVEREPLAY"],
-            "roadnetLogFile": "frontend/web/roadnetLogFile.json",
-            "replayLogFile": "frontend/web/replayLogFile.txt"
-        }
-        print("=========================")
-        print(cityflow_config)
-
-        with open(os.path.join(self.path_to_work_directory,"cityflow.config"), "w") as json_file:
-            json.dump(cityflow_config, json_file)
-        self.eng = engine.Engine(os.path.join(self.path_to_work_directory,"cityflow.config"), thread_num=1)
+        self.eng.reset()
         self.eng.set_random_seed(self.seed)
-        # self.load_roadnet()
-        # self.load_flow()
 
         # get adjacency
         if self.dic_traffic_env_conf["USE_LANE_ADJACENCY"]:

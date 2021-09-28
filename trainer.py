@@ -170,29 +170,3 @@ class Trainer:
         print("running_time: ", running_time)
         print("log_time: ", log_time)
         return
-
-
-    # TODO: TO really append to a pickled object
-    # We have to keep reading until EOF. -- do that with
-    # samples_inter in order to avoid rewrites.
-    # Move this this to sampler.
-    # def make_samples(self):
-    #     print("==============  make samples =============")
-    #     # make samples and determine which samples are good
-    #     making_samples_start_time = time.time()
-    #     # train_round = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round")
-    #     # if not os.path.exists(train_round):
-    #     #     os.makedirs(train_round)
-
-    #     for i in range(self.dic_traffic_env_conf['NUM_INTERSECTIONS']):
-    #         target_dir = f'generator_{self.cnt_gen}'
-    #         self.sampler.load_data_for_system(target_dir)
-    #         self.sampler.make_reward(target_dir, i)
-    #         target_path = f'{self.sampler.path_to_samples}/{target_dir}/samples_inter_{i}.pkl'
-    #         with open(target_path, 'ab') as f:
-    #             pickle.dump(self.sampler.samples_all_intersection[i], f, -1)
-
-
-    #     # EvaluateSample()
-    #     making_samples_end_time = time.time()
-    #     making_samples_total_time = making_samples_end_time - making_samples_start_time

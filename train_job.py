@@ -134,6 +134,8 @@ class TrainJob:
     def trainer_wrapper(self, cnt_round, cnt_gen, dic_path, dic_exp_conf, dic_agent_conf, dic_traffic_env_conf,
                           best_round=None):
 
+        # Prevents race conditions on multi-thread.
+        time.sleep(0.1)
         gen_dic_path = deepcopy(dic_path)
         # Separates the model per generator
         gen_dic_path['PATH_TO_MODEL'] += f'/generator_{cnt_gen}/'
@@ -169,7 +171,6 @@ class TrainJob:
             try:
                 logging_data = pickle.load(f_logging_data)
                 subset_data = logging_data[::10]
-                print(subset_data)
                 os.remove(path_to_pkl)
                 with open(path_to_pkl, "wb") as f_subset:
                     try:
@@ -252,21 +253,6 @@ class TrainJob:
                         print("Error occurs when downsampling for round {0} trainer {1}".format(cnt_round, cnt_gen))
                         print("traceback.format_exc():\n%s"%traceback.format_exc())
                         print("----------------------------")
-            # update_network_end_time = time.time()
-            # update_network_total_time = update_network_end_time - update_network_start_time
-            # print("==============  test evaluation =============")
-            # test_evaluation_start_time = time.time()
-            # if multi_process:
-            #     p = Process(target=model_test.test,
-            #                 args=(self.dic_path["PATH_TO_MODEL"], cnt_round, self.dic_exp_conf["RUN_COUNTS"], self.dic_traffic_env_conf, False))
-            #     p.start()
-            #     if self.dic_exp_conf["EARLY_STOP"]:
-            #         p.join()
-            # else:
-            #     model_test.test(self.dic_path["PATH_TO_MODEL"], cnt_round, self.dic_exp_conf["RUN_COUNTS"], self.dic_traffic_env_conf, if_gui=False)
-
-            # test_evaluation_end_time = time.time()
-            # test_evaluation_total_time = test_evaluation_end_time - test_evaluation_start_time
 
             print('==============  early stopping =============')
             if self.dic_exp_conf["EARLY_STOP"]:
@@ -276,47 +262,6 @@ class TrainJob:
                     print("training ends at round %s" % cnt_round)
                     break
 
-            print('==============  model pool evaluation =============')
-            # if self.dic_exp_conf["MODEL_POOL"] and cnt_round > 50:
-            #     if multi_process:
-            #         p = Process(target=self.model_pool_wrapper,
-            #                     args=(self.dic_path,
-            #                           self.dic_exp_conf,
-            #                           cnt_round),
-            #                     )
-            #         p.start()
-            #         print("model_pool to join")
-            #         p.join()
-            #         print("model_pool finish join")
-            #     else:
-            #         self.model_pool_wrapper(dic_path=self.dic_path,
-            #                                 dic_exp_conf=self.dic_exp_conf,
-            #                                 cnt_round=cnt_round)
-            #     model_pool_dir = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "best_model.pkl")
-            #     if os.path.exists(model_pool_dir):
-            #         model_pool = pickle.load(open(model_pool_dir, "rb"))
-            #         ind = random.randint(0, len(model_pool) - 1)
-            #         best_round = model_pool[ind][0]
-            #         ind_bar = random.randint(0, len(model_pool) - 1)
-            #         flag = 0
-            #         while ind_bar == ind and flag < 10:
-            #             ind_bar = random.randint(0, len(model_pool) - 1)
-            #             flag += 1
-            #         # bar_round = model_pool[ind_bar][0]
-            #         bar_round = None
-            #     else:
-            #         best_round = None
-            #         bar_round = None
-
-            #     # downsample
-            #     if not self.dic_exp_conf["DEBUG"]:
-            #         path_to_log = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "test_round",
-            #                                    "round_" + str(cnt_round))
-            #         self.downsample_for_system(path_to_log, self.dic_traffic_env_conf)
-            # else:
-            #     best_round = None
-
-            print("best_round: ", best_round)
 
             print("Trainer time: ",trainer_total_time)
 
