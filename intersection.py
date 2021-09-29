@@ -505,6 +505,13 @@ class Intersection:
             delay_list = \
                 [delay(speeds[vehid] / max_speed) for vehid in vehicles[laneid]]
             ret.append(float(np.round(np.sum(delay_list), 4)))
+
+        if not self.dic_traffic_env_conf['BINARY_PHASE_EXPANSION']:
+            # Collapse
+            ret = [
+                sum([l for i, l in zip(ind, ret) if i==1])
+                for p, ind in self.list_phases.items()
+            ]
         return ret
 
 

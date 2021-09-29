@@ -169,7 +169,11 @@ class CoLightAgent(Agent):
                 else:
                     feature_num += 1
             elif feature_name in ("lane_num_vehicle", "delay"):
-                feature_num += len(self.intersection.list_entering_lanes)
+                if self.dic_traffic_env_conf['BINARY_PHASE_EXPANSION']:
+                    feature_num += len(self.intersection.list_entering_lanes)
+                else:
+                    # This option collapses states into the number of phases.
+                    feature_num += len(self.intersection.list_phases)
             else:
                 feature_key = f'D_{feature_name.upper()}'
                 feature_num +=  feature_dict[feature_key][0]

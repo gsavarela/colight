@@ -109,8 +109,9 @@ class Sampler(object):
         state = self.logging_data_list_per_gen[i][time]
         traffic_light_phases = self.dic_traffic_env_conf['traffic_light_phases'][i]
         assert time == state["time"]
+
+        state_after_selection = {}
         if self.dic_traffic_env_conf["BINARY_PHASE_EXPANSION"]:
-            state_after_selection = {}
             for key, value in state["state"].items():
                 if key in features:
                     if "cur_phase" in key:
@@ -119,7 +120,6 @@ class Sampler(object):
                         state_after_selection[key] = value
         else:
             state_after_selection = {key: value for key, value in state["state"].items() if key in features}
-        # print(state_after_selection)
         return state_after_selection
 
 

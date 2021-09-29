@@ -11,14 +11,14 @@ import matplotlib
 
 from script import get_traffic_volume
 
-multi_process = False
+multi_process = True
 TOP_K_ADJACENCY=-1
 TOP_K_ADJACENCY_LANE=-1
 PRETRAIN=False
-NUM_GENERATORS=2
-NUM_ROUNDS=2
-RUN_COUNTS=3600
-NUM_TRAIN_UPDATES=2
+NUM_GENERATORS=10
+NUM_ROUNDS=20
+RUN_COUNTS=21600
+NUM_TRAIN_UPDATES=5
 EARLY_STOP=False
 NEIGHBOR=False
 SAVEREPLAY=False
@@ -163,7 +163,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
 
     process_list = []
     n_workers = workers     #len(traffic_file_list)
-    multi_process = False
+    multi_process = True
 
     global PRETRAIN
     global NUM_ROUNDS
@@ -226,7 +226,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             "TOP_K_ADJACENCY": TOP_K_ADJACENCY,
             "ADJACENCY_BY_CONNECTION_OR_GEO": ADJACENCY_BY_CONNECTION_OR_GEO,
             "TOP_K_ADJACENCY_LANE": TOP_K_ADJACENCY_LANE,
-            "BINARY_PHASE_EXPANSION": True,
+            "BINARY_PHASE_EXPANSION": False,
             "FAST_COMPUTE": False,
             "EMIT": False,
             "NEIGHBOR": NEIGHBOR,
