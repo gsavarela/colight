@@ -102,15 +102,16 @@ class RoadNet:
                             "input_lanes": []
                         }
                     else:
-                        lane_dict[start_lane]["output_lanes"].append(end_lane)
+                        if end_lane not in lane_dict[start_lane]["output_lanes"]:
+                            lane_dict[start_lane]["output_lanes"].append(end_lane)
                     if end_lane not in lane_dict:
                         lane_dict[end_lane] = {
                             "output_lanes": [],
                             "input_lanes": [start_lane]
                         }
                     else:
-                        lane_dict[end_lane]["input_lanes"].append(start_lane)
-
+                        if start_lane not in lane_dict[end_lane]["input_lanes"]:
+                            lane_dict[end_lane]["input_lanes"].append(start_lane)
         self.net_lane_dict = lane_dict
 
         self.max_speed = {
