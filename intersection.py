@@ -166,7 +166,22 @@ class Intersection:
 
 
     def build_adjacency_row_lane(self, lane_id_to_global_index_dict):
-        self.adjacency_row_lanes = [] # order is the entering lane order, each element is list of two lists
+        ''' Adjacency lanes are the lanes that connect to one another through
+            an intersection.
+
+        Params:
+        -------
+        * lane_id_to_global_index_dict: dict<str, int>
+            Maps lane code 'road_<orig_intersection_num>_<direction>_<lane_num>
+            into integer.
+
+        Returns:
+        -------
+        * adjacency_row_lanes: list<<list<int>>
+            * Each element are two lists: lanes adjacent and lanes adjacent to the outgoing lanes.
+        '''
+        # Order is the entering lane order by id, each element is list of two lists
+        self.adjacency_row_lanes = []
         for entering_lane_id in self.list_entering_lanes:
             _top_k_entering_lane, _top_k_leaving_lane = self._adjacency_row_lanes[entering_lane_id]
             top_k_entering_lane = []
