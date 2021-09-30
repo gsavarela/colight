@@ -112,17 +112,17 @@ class Intersection:
 
         self._adjacency_row_lanes = {}
         # _adjacency_row_lanes is the lane id, not index
-        for lane_id in self.list_entering_lanes:
-            if lane_id in light_id_dict['adjacency_matrix_lane']:
-                self._adjacency_row_lanes[lane_id] = light_id_dict['adjacency_matrix_lane'][lane_id]
-            else:
-                self._adjacency_row_lanes[lane_id] = [_get_top_k_lane([], self.dic_traffic_env_conf["TOP_K_ADJACENCY_LANE"]),
-                                                 _get_top_k_lane([], self.dic_traffic_env_conf["TOP_K_ADJACENCY_LANE"])]
+        # for lane_id in self.list_entering_lanes:
+        #     if lane_id in light_id_dict['adjacency_matrix_lane']:
+        #         self._adjacency_row_lanes[lane_id] = light_id_dict['adjacency_matrix_lane'][lane_id]
+        #     else:
+        #         self._adjacency_row_lanes[lane_id] = [_get_top_k_lane([], self.dic_traffic_env_conf["TOP_K_ADJACENCY_LANE"]),
+        #                                          _get_top_k_lane([], self.dic_traffic_env_conf["TOP_K_ADJACENCY_LANE"])]
         # order is the entering lane order, each element is list of two lists
 
-        self.adjacency_row_lane_id_local = {}
-        for index, lane_id in enumerate(self.list_entering_lanes):
-            self.adjacency_row_lane_id_local[lane_id] = index
+        # self.adjacency_row_lane_id_local = {}
+        # for index, lane_id in enumerate(self.list_entering_lanes):
+        #     self.adjacency_row_lane_id_local[lane_id] = index
 
         # previous & current
         self.dic_lane_vehicle_previous_step = {}
@@ -467,7 +467,7 @@ class Intersection:
 
         dic_feature["adjacency_matrix"] = self._get_adjacency_row() # TODO this feature should be a dict? or list of lists
 
-        dic_feature["adjacency_matrix_lane"] = self._get_adjacency_row_lane() #row: entering_lane # columns: [inputlanes, outputlanes]
+        # dic_feature["adjacency_matrix_lane"] = self._get_adjacency_row_lane() #row: entering_lane # columns: [inputlanes, outputlanes]
 
         dic_feature['connectivity'] = self._get_connectivity(self.neighbor_lanes_ENWS)
 

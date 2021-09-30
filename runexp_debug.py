@@ -16,7 +16,7 @@ TOP_K_ADJACENCY=-1
 TOP_K_ADJACENCY_LANE=-1
 PRETRAIN=False
 NUM_GENERATORS=10
-NUM_ROUNDS=20
+NUM_ROUNDS=10
 RUN_COUNTS=21600
 NUM_TRAIN_UPDATES=5
 EARLY_STOP=False
@@ -403,7 +403,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
                 "adjacency_matrix_lane" not in dic_traffic_env_conf_extra['LIST_STATE_FEATURE'] and \
                 mod not in ['SimpleDQNOne']:
                 dic_traffic_env_conf_extra['LIST_STATE_FEATURE'].append("adjacency_matrix")
-                dic_traffic_env_conf_extra['LIST_STATE_FEATURE'].append("adjacency_matrix_lane")
+                # dic_traffic_env_conf_extra['LIST_STATE_FEATURE'].append("adjacency_matrix_lane")
                 if dic_traffic_env_conf_extra['ADJACENCY_BY_CONNECTION_OR_GEO']:
                     TOP_K_ADJACENCY = 5
                     dic_traffic_env_conf_extra['LIST_STATE_FEATURE'].append("connectivity")

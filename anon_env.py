@@ -152,8 +152,8 @@ class AnonEnv:
                     count_lane += 1
 
         # build adjacency_matrix_lane in index from _adjacency_matrix_lane
-        for inter in self.list_intersection:
-            inter.build_adjacency_row_lane(self.lane_id_to_index)
+        # for inter in self.list_intersection:
+        #     inter.build_adjacency_row_lane(self.lane_id_to_index)
 
 
         # get new measurements
@@ -799,12 +799,10 @@ class AnonEnv:
                     top_k_lane_indexes.append(lane_id)
                 return top_k_lane_indexes
 
-            adjacency_matrix_lane = {}
-            for i in lane_id_dict.keys(): # Todo lane_ids should be in an order
-                adjacency_matrix_lane[i] = [_get_top_k_lane(lane_id_dict[i]['input_lanes'], top_k_lane),
-                                            _get_top_k_lane(lane_id_dict[i]['output_lanes'], top_k_lane)]
-
-
+            # adjacency_matrix_lane = {}
+            # for i in lane_id_dict.keys(): # Todo lane_ids should be in an order
+            #     adjacency_matrix_lane[i] = [_get_top_k_lane(lane_id_dict[i]['input_lanes'], top_k_lane),
+            #                                 _get_top_k_lane(lane_id_dict[i]['output_lanes'], top_k_lane)]
 
             for i in traffic_light_node_dict.keys():
                 location_1 = traffic_light_node_dict[i]['location']
@@ -836,7 +834,7 @@ class AnonEnv:
 
                 traffic_light_node_dict[i]['total_inter_num'] = total_inter_num
                 traffic_light_node_dict[i]['total_lane_num'] = total_lane_num
-                traffic_light_node_dict[i]['adjacency_matrix_lane'] = adjacency_matrix_lane
+                # traffic_light_node_dict[i]['adjacency_matrix_lane'] = adjacency_matrix_lane
                 traffic_light_node_dict[i]['light_phases'].update(roadnet.light_phases_dict[i])
                 for roadlink in traffic_light_node_dict[i]['roadlinks_incoming']:
                     traffic_light_node_dict[i]['max_speed'].update({
