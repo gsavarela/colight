@@ -265,15 +265,38 @@ class CoLightAgent(Agent):
 
 
 
-    def adjacency_index2matrix(self,adjacency_index):
-        #adjacency_index(the nearest K neighbors):[1,2,3]
-        """
-        if in 1*6 aterial and 
-            - the 0th intersection,then the adjacency_index should be [0,1,2,3]
-            - the 1st intersection, then adj [0,3,2,1]->[1,0,2,3]
-            - the 2nd intersection, then adj [2,0,1,3]
+    def adjacency_index2matrix(self, adjacency_index):
+        """Converts adjacency_index(the nearest K neighbors): [1,2,3]
+            into one-hot encoding with respect to the total number of agents.
 
-        """ 
+            * Sorts the agents' indexes.
+            * One-hot encodes the neighbors wrt num agents.
+
+            Hyperparams:
+            -----------
+            * K .: integer
+                Top number of neighbors, own agents index included.
+
+            Params:
+            -------
+            * adjacency_index.: list<int>
+                The list of size K, with the index of neighbors, first element
+                is always intersection index.
+
+            Returns:
+            --------
+            * one-hot encoded .: np.array<int>, int: 0-1
+                Size <Batch, Num. Agents, Num. neighbors>
+
+            Example:
+            --------
+                if in 1x6 arterial (N_AGENTS=6, K=4):
+                ( 0 <--> 1 <--> 2 <--> 3 <--> 4 <--> 5 )
+                - the 0th intersection,then the adjacency_index should be [0,1,2,3]
+                - the 1st intersection, then adj [0,3,2,1]->[1,0,2,3]
+                - the 2nd intersection, then adj [2,0,1,3] <?> [2,1,3,4]
+                - the 3rd intersection, then adj [3,1,2,4] <?> [3,2,4,5]
+        """
         #[batch,agents,neighbors]
         adjacency_index_new=np.sort(adjacency_index,axis=-1)
         l = to_categorical(adjacency_index_new,num_classes=self.num_agents)
@@ -314,14 +337,14 @@ class CoLightAgent(Agent):
             #feature:[agents,feature]
             total_features = self._feature_padding(total_features, batch_size)
             total_adjs=self.adjacency_index2matrix(np.array(total_adjs))
-            #adj:[agent,neighbors]   
+            #adj:[agent, neighbors]   
         if bar:
             all_output= self.q_network_bar.predict([total_features,total_adjs])
         else:
             all_output= self.q_network.predict([total_features,total_adjs])
         action,attention =all_output[0],all_output[1]
 
-        #out: [batch,agent,action], att:[batch,layers,agent,head,neighbors]
+        #out: [batch, agent, action], att:[batch,layers,agent,head,neighbors]
         if len(action)>1:
             return total_features,total_adjs,action,attention
 
@@ -471,7 +494,7 @@ class CoLightAgent(Agent):
                     dout=CNN_layer_size[1],
                     nv=CNN_heads[CNN_layer_index],
                     suffix=CNN_layer_index
-                    )
+                )
             else:
                 h,att_record=self.MultiHeadsAttModel(
                     h,
@@ -482,7 +505,7 @@ class CoLightAgent(Agent):
                     dout=CNN_layer_size[1],
                     nv=CNN_heads[CNN_layer_index],
                     suffix=CNN_layer_index
-                    )
+                )
             att_record_all_layers.append(att_record)
 
         if len(CNN_layers)>1:
