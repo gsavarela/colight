@@ -60,7 +60,7 @@ class CoLightAgent(Agent):
         5. if cnt_round > 0, attempts to load model.
         """
         super(CoLightAgent, self).__init__(
-            dic_agent_conf, dic_traffic_env_conf, dic_path,intersection_id)
+            dic_agent_conf, dic_traffic_env_conf, dic_path, intersection_id)
 
         self.att_regulatization=dic_agent_conf['att_regularization']
         self.CNN_layers=dic_agent_conf['CNN_layers']
@@ -73,6 +73,7 @@ class CoLightAgent(Agent):
         self.vec[0][0]=1
         self.seed = dic_traffic_env_conf['SEED']
         self.cnt_gen = cnt_gen
+        self.cnt_round = cnt_round
 
 
         random.seed(self.seed)
@@ -91,7 +92,7 @@ class CoLightAgent(Agent):
             self.q_network = self.build_network()
             if os.listdir(self.dic_path["PATH_TO_MODEL"]):
                 self.q_network.load_weights(
-                    os.path.join(self.dic_path["PATH_TO_MODEL"], "round_0_inter_{0}.h5".format(intersection_id)), 
+                    os.path.join(self.dic_path["PATH_TO_MODEL"], "round_0_inter_{0}.h5".format(intersection_id)),
                     by_name=True)
             self.q_network_bar = self.build_network_from_copy(self.q_network)
         else:
@@ -356,7 +357,7 @@ class CoLightAgent(Agent):
         selection=np.random.choice(
             [0,1],
             size=batch_size*self.num_agents,
-            p=[1-self.dic_agent_conf["EPSILON"],self.dic_agent_conf["EPSILON"]])
+            p=[1-self.epsilon,self.epsilon])
         act=possible_action.reshape((batch_size*self.num_agents,2))[np.arange(batch_size*self.num_agents),selection]
         act=np.reshape(act,(batch_size,self.num_agents))
         return act,attention
@@ -367,6 +368,18 @@ class CoLightAgent(Agent):
         stacked_features = np.vstack(padded_features)
         return np.reshape(stacked_features,[batch_size,self.num_agents,-1])
 
+    def _get_epsilon(self, step_num):
+        # alias variables
+        ei, ef = self.dic_agent_conf['EPSILON_INIT'], self.dic_agent_conf['EPSILON_FINAL']
+        et = self.dic_agent_conf['EPSILON_SCHEDULE_TIMESTEPS']
+        er = self.dic_agent_conf['RUN_COUNTS']
+
+        # linear decay -- takes an action every 10s
+        m = (ei - ef) * 10 / et
+        b = (self.cnt_round * er) / 10
+
+        return max(ei - m * (step_num + b), ef)
+
     def choose_action(self, count, state):
 
         '''
@@ -374,8 +387,9 @@ class CoLightAgent(Agent):
         -input: state: [batch,agent,feature]  adj: [batch,agent,neighbors,agents]
         -output: out: [batch,agent,action], att:[batch,layers,agent,head,neighbors]
         '''
+        self.epsilon = self._get_epsilon(count)
         act,attention=self.action_att_predict([state])
-        return act[0],attention[0] 
+        return act[0],attention[0]
 
 
     def prepare_Xs_Y(self, memory, dic_exp_conf):

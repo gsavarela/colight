@@ -239,7 +239,7 @@ DIC_DEEPLIGHT_AGENT_CONF = {
     "SEPARATE_MEMORY": True,
     "PRIORITY_SAMPLING": False,
     "UPDATE_Q_BAR_FREQ": 5,
-    "GAMMA": 0.8,
+    "GAMMA": 0.98,
     "GAMMA_PRETRAIN": 0,
     "MAX_MEMORY_LEN": 1000,
     "PATIENCE": 10,
@@ -247,9 +247,9 @@ DIC_DEEPLIGHT_AGENT_CONF = {
     "KEEP_OLD_MEMORY": 0,
     "DDQN": False,
     "D_DENSE": 20,
-    "EPSILON": 0.8,
+    "EPSILON": 0.9,
     "EPSILON_DECAY": 0.95,
-    "MIN_EPSILON": 0.2,
+    "MIN_EPSILON": 0.01,
     "LOSS_FUNCTION": "mean_squared_error",
     "NORMAL_FACTOR": 20,
 
@@ -317,7 +317,7 @@ DIC_COLIGHT_AGENT_CONF = {
     "EPOCHS": 100,
     "UPDATE_Q_BAR_FREQ": 5,
     "UPDATE_Q_BAR_EVERY_C_ROUND": False,
-    "GAMMA": 0.8,
+    "GAMMA": 0.98,
     "MAX_MEMORY_LEN": 10000,
     "PATIENCE": 10,
     "D_DENSE": 20,
@@ -326,6 +326,11 @@ DIC_COLIGHT_AGENT_CONF = {
     "EPSILON": 0.8,
     "EPSILON_DECAY": 0.95,
     "MIN_EPSILON": 0.2,
+
+    # This is new configuration
+    "EPSILON_SCHEDULE_TIMESTEPS": 1706400,
+    "EPSILON_INIT": 0.9,
+    "EPSILON_FINAL": 0.01,
 
     "LOSS_FUNCTION": "mean_squared_error",
     "SEPARATE_MEMORY": False,
