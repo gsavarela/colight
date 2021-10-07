@@ -15,10 +15,10 @@ multi_process = True
 TOP_K_ADJACENCY=-1
 TOP_K_ADJACENCY_LANE=-1
 PRETRAIN=False
-NUM_GENERATORS=5
-NUM_ROUNDS=5
-RUN_COUNTS=21600
-NUM_TRAIN_UPDATES=10
+NUM_GENERATORS=30 # Number of runs
+NUM_ROUNDS=80 # Number of episodes
+RUN_COUNTS=21600 # Length of the episode
+NUM_TRAIN_UPDATES=6 # One model update per hour
 EARLY_STOP=False
 NEIGHBOR=False
 SAVEREPLAY=False
@@ -86,11 +86,6 @@ def parse_args():
             4: [0, 0, 0, 0, 1, 0, 1, 0]
         }
 
-        # FIXME: Hardcode: Lisbon 1_1
-        # ANON_PHASE_REPRE={
-        #     1: [0, 0, 1, 1, 1, 1, 0, 0],
-        #     2: [1, 1, 0, 0, 0, 0, 0, 1]
-        # }
     print('agent_name:%s', tt.mod)
     print('ANON_PHASE_REPRE:', ANON_PHASE_REPRE)
 
@@ -146,7 +141,6 @@ def wait_process_done(f, fid, wait_time=0.001):
 
 def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, onemodel):
 
-    # main(args.memo, args.env, args.road_net, args.gui, args.volume, args.ratio, args.mod, args.cnt, args.gen)
     #Jinan_3_4
     NUM_COL = int(road_net.split('_')[0])
     NUM_ROW = int(road_net.split('_')[1])
@@ -203,10 +197,10 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             "MAX_MEMORY_LEN": 10000,
             "UPDATE_Q_BAR_EVERY_C_ROUND": False,
             "UPDATE_Q_BAR_FREQ": 5,
-            # network
-
             "N_LAYER": 2,
             "TRAFFIC_FILE": traffic_file,
+            # necessary for epsilon count
+            "RUN_COUNTS": cnt,
         }
 
         global TOP_K_ADJACENCY
@@ -227,7 +221,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             "TOP_K_ADJACENCY": TOP_K_ADJACENCY,
             "ADJACENCY_BY_CONNECTION_OR_GEO": ADJACENCY_BY_CONNECTION_OR_GEO,
             "TOP_K_ADJACENCY_LANE": TOP_K_ADJACENCY_LANE,
-            "BINARY_PHASE_EXPANSION": True,
+            "BINARY_PHASE_EXPANSION": False,
             "FAST_COMPUTE": False,
             "EMIT": False,
             "NEIGHBOR": NEIGHBOR,
@@ -242,31 +236,16 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             "VOLUME": volume,
             "ROADNET_FILE": "roadnet_{0}.json".format(road_net),
 
-            "phase_expansion": {
-                1: [0, 1, 0, 1, 0, 0, 0, 0],
-                2: [0, 0, 0, 0, 0, 1, 0, 1],
-                3: [1, 0, 1, 0, 0, 0, 0, 0],
-                4: [0, 0, 0, 0, 1, 0, 1, 0],
-                5: [1, 1, 0, 0, 0, 0, 0, 0],
-                6: [0, 0, 1, 1, 0, 0, 0, 0],
-                7: [0, 0, 0, 0, 0, 0, 1, 1],
-                8: [0, 0, 0, 0, 1, 1, 0, 0]
-            },
-
-            "phase_expansion_4_lane": {
-                1: [1, 1, 0, 0],
-                2: [0, 0, 1, 1],
-            },
-
 
             "LIST_STATE_FEATURE": [
                 "cur_phase",
-                # "time_this_phase",
+                "time_this_phase",
                 # "vehicle_position_img",
                 # "vehicle_speed_img",
                 # "vehicle_acceleration_img",
                 # "vehicle_waiting_time_img",
-                "lane_num_vehicle",
+                # "lane_num_vehicle",
+                "delay",
                 # "lane_num_vehicle_been_stopped_thres01",
                 # "lane_num_vehicle_been_stopped_thres1",
                 # "lane_queue_length",
@@ -318,6 +297,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
                 "sum_duration_vehicle_left": 0,
                 "sum_num_vehicle_been_stopped_thres01": 0,
                 "sum_num_vehicle_been_stopped_thres1": -0.25,
+                "sum_delays": -0.01,
                 "pressure": 0  # -0.25
             },
             "LANE_NUM": {
@@ -398,7 +378,10 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
         if mod in ['CoLight','GCN','SimpleDQNOne']:
             dic_traffic_env_conf_extra["NUM_AGENTS"] = 1
             dic_traffic_env_conf_extra['ONE_MODEL'] = False
-            if "adjacency_matrix" not in dic_traffic_env_conf_extra['LIST_STATE_FEATURE'] and \
+            if mod in ['CoLight']  and "adjacency_matrix" not in dic_traffic_env_conf_extra['LIST_STATE_FEATURE']:
+                dic_traffic_env_conf_extra['LIST_STATE_FEATURE'].append("adjacency_matrix")
+
+            elif "adjacency_matrix" not in dic_traffic_env_conf_extra['LIST_STATE_FEATURE'] and \
                 "adjacency_matrix_lane" not in dic_traffic_env_conf_extra['LIST_STATE_FEATURE'] and \
                 mod not in ['SimpleDQNOne']:
                 dic_traffic_env_conf_extra['LIST_STATE_FEATURE'].append("adjacency_matrix")
@@ -445,9 +428,10 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
 
         print(traffic_file)
         prefix_intersections = str(road_net)
+        timestamp = time.strftime('%m_%d_%H_%M_%S', time.localtime(time.time()))
         dic_path_extra = {
-            "PATH_TO_MODEL": os.path.join("model", memo, traffic_file + "_" + time.strftime('%m_%d_%H_%M_%S', time.localtime(time.time()))),
-            "PATH_TO_WORK_DIRECTORY": os.path.join("records", memo, traffic_file + "_" + time.strftime('%m_%d_%H_%M_%S', time.localtime(time.time()))),
+            "PATH_TO_MODEL": os.path.join("model", memo, traffic_file + "_" + timestamp),
+            "PATH_TO_WORK_DIRECTORY": os.path.join("records", memo, traffic_file + "_" + timestamp),
 
             "PATH_TO_DATA": os.path.join("data", template, prefix_intersections),
             "PATH_TO_PRETRAIN_MODEL": os.path.join("model", "initial", traffic_file),
@@ -459,9 +443,6 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
         deploy_dic_agent_conf = merge(getattr(config, "DIC_{0}_AGENT_CONF".format(mod.upper())),
                                       dic_agent_conf_extra)
         deploy_dic_traffic_env_conf = merge(config.dic_traffic_env_conf, dic_traffic_env_conf_extra)
-
-        # TODO add agent_conf for different agents
-        # deploy_dic_agent_conf_all = [deploy_dic_agent_conf for i in range(deploy_dic_traffic_env_conf["NUM_AGENTS"])]
 
         deploy_dic_path = merge(config.DIC_PATH, dic_path_extra)
 
