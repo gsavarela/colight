@@ -1,11 +1,13 @@
 import os
 import copy
-from config import DIC_AGENTS, DIC_ENVS
 import time
 import sys
 from multiprocessing import Process, Pool
 
-class Generator:
+from anon_env import AnonEnv
+from config import DIC_AGENTS
+
+class Roller:
     def __init__(self, cnt_round, cnt_gen, dic_path, dic_exp_conf, dic_agent_conf, dic_traffic_env_conf, best_round=None):
 
         self.cnt_round = cnt_round
@@ -16,19 +18,30 @@ class Generator:
         self.dic_traffic_env_conf = dic_traffic_env_conf
         self.agents = [None]*dic_traffic_env_conf['NUM_AGENTS']
 
+        # Builds seed.
+        self.seed = cnt_gen * dic_exp_conf['SEED_GROWTH_FACTOR'] \
+             + dic_exp_conf['SEED_BASE']
+        self.dic_exp_conf['SEED'] = self.seed
+        self.dic_agent_conf['SEED'] = self.seed
+        self.dic_traffic_env_conf['SEED'] = self.seed
+
         if self.dic_exp_conf["PRETRAIN"]:
             self.path_to_log = os.path.join(self.dic_path["PATH_TO_PRETRAIN_WORK_DIRECTORY"], "train_round",
                                             "round_" + str(self.cnt_round), "generator_" + str(self.cnt_gen))
         else:
-            self.path_to_log = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round", "round_"+str(self.cnt_round), "generator_"+str(self.cnt_gen))
+            self.path_to_log = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "test_round", "round_"+str(self.cnt_round), "generator_"+str(self.cnt_gen))
         if not os.path.exists(self.path_to_log):
-            os.makedirs(self.path_to_log)  
+            os.makedirs(self.path_to_log)
 
-        self.env = DIC_ENVS[dic_traffic_env_conf["SIMULATOR_TYPE"]](
-                              path_to_log = self.path_to_log,
-                              path_to_work_directory = self.dic_path["PATH_TO_WORK_DIRECTORY"],
-                              dic_traffic_env_conf = self.dic_traffic_env_conf)        
+
+        import ipdb; ipdb.set_trace()
+        self.env = AnonEnv(
+              path_to_log = self.path_to_log,
+              path_to_work_directory = self.dic_path["PATH_TO_WORK_DIRECTORY"],
+              dic_traffic_env_conf = self.dic_traffic_env_conf,
+        )
         self.env.reset()
+        self.dic_traffic_env_conf['traffic_light_phases'] = self.env.traffic_light_phases
 
         # every generator's output
         # generator for pretraining
@@ -50,34 +63,32 @@ class Generator:
 
             for i in range(dic_traffic_env_conf['NUM_AGENTS']):
                 agent_name = self.dic_exp_conf["MODEL_NAME"]
+                # FIXME: 'True' phase
+                intersec = self.env.list_intersection[i]
                 #the CoLight_Signal needs to know the lane adj in advance, from environment's intersection list
                 if agent_name=='CoLight_Signal':
                     agent = DIC_AGENTS[agent_name](
                         dic_agent_conf=self.dic_agent_conf,
                         dic_traffic_env_conf=self.dic_traffic_env_conf,
                         dic_path=self.dic_path,
-                        cnt_round=self.cnt_round, 
+                        cnt_round=self.cnt_round,
                         best_round=best_round,
-                        inter_info=self.env.list_intersection,
+                        intersection=intersec,
                         intersection_id=str(i)
-                    )      
-                else:              
+                    )
+                else:
+
                     agent = DIC_AGENTS[agent_name](
                         dic_agent_conf=self.dic_agent_conf,
                         dic_traffic_env_conf=self.dic_traffic_env_conf,
                         dic_path=self.dic_path,
-                        cnt_round=self.cnt_round, 
+                        cnt_round=self.cnt_round,
                         best_round=best_round,
+                        intersection=intersec,
                         intersection_id=str(i)
                     )
                 self.agents[i] = agent
             print("Create intersection agent time: ", time.time()-start_time)
-
-
-
-
-
-
 
     def generate(self):
 
@@ -124,8 +135,11 @@ class Generator:
         print("start logging")
         self.env.bulk_log_multi_process()
         log_time = time.time() - log_start_time
+        self.env.info_log()
+        self.env.emission_log()
 
         self.env.end_sumo()
         print("reset_env_time: ", reset_env_time)
         print("running_time: ", running_time)
         print("log_time: ", log_time)
+        return
