@@ -42,7 +42,7 @@ class AnonEnv:
         self.list_inter_log = None
         self.list_lanes = None
         self.system_states = None
-        self.info_dict = defaultdict(g_list)
+        self.info_dict = defaultdict(list)
         self.emission = []
         self.feature_name_for_neighbor = self._reduce_duplicates(self.dic_traffic_env_conf["LIST_STATE_FEATURE"])
         self.seed = dic_traffic_env_conf['SEED']
@@ -64,13 +64,13 @@ class AnonEnv:
 
         # Load previous information dict -- if exists
         self.info_log_path = Path(self.path_to_work_directory)
-        if ('train_round' in self.path_to_log):
+        if ('train_round' in self.path_to_log.as_posix()):
             self.info_log_path = self.info_log_path / 'train_logs'
         else:
             self.info_log_path = self.info_log_path / 'rollout_logs'
         self.info_log_path.mkdir(exist_ok=True)
-        self.info_log_path = self.info_log_path  / self.path_to_log.split('/')[-1]
-        if self.info_log_path.exists():
+        self.info_log_path = self.info_log_path  / self.path_to_log.stem
+        if (self.info_log_path / 'train_log.json').exists():
             with (self.info_log_path / 'train_log.json').open('r') as f:
                 self.info_dict = json.load(f)
         else:

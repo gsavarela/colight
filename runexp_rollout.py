@@ -4,12 +4,15 @@
     PRETRAIN = True
     NUM_ROUNDS = NUM_RUNS
     NUM_GENERATORS = NUM_PROCESSORS
+    PATH_TO_WORKING_DIRECTORY
 
 '''
+from pathlib import Path
+import shutil
+
 import config
 import copy
 from rollout_job import RolloutJob
-import os
 import time
 from multiprocessing import Process
 import argparse
@@ -19,7 +22,7 @@ import matplotlib
 
 from script import get_traffic_volume
 
-multi_process = False
+multi_process = True
 TOP_K_ADJACENCY=-1
 TOP_K_ADJACENCY_LANE=-1
 PRETRAIN=True
@@ -35,11 +38,8 @@ ANON_PHASE_REPRE=[]
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--memo", type=str, default='0924_Colight_Lisbon_1_3')#1_3,2_2,3_3,4_4
-    parser.add_argument("--gui", type=bool, default=False)
-    parser.add_argument("--road_net", type=str, default='1_3')#'1_2') # which road net you are going to run
-    parser.add_argument("--volume", type=str, default='lisbon')#'300'
-    parser.add_argument("--suffix", type=str, default="uniform")#0.3
+    parser.add_argument("path", type=str,
+                        help="Point this variable to the directory")#1_3,2_2,3_3,4_4
 
     global hangzhou_archive
     hangzhou_archive=False
@@ -65,14 +65,15 @@ def parse_args():
     PRETRAIN=True
     parser.add_argument("--mod", type=str, default='CoLight')#SimpleDQN,SimpleDQNOne,GCN,CoLight,Lit
     parser.add_argument("--cnt",type=int, default=RUN_COUNTS)#3600
-    parser.add_argument("--gen",type=int, default=NUM_GENERATORS)#4
 
     parser.add_argument("-all", action="store_true", default=False)
     parser.add_argument("--workers",type=int, default=5)
     parser.add_argument("--onemodel",type=bool, default=False)
     parser.add_argument("--visible_gpu", type=str, default="-1")
+
     global ANON_PHASE_REPRE
     tt=parser.parse_args()
+
     # FIXME: This should be read from the roadnet
     if 'CoLight_Signal' in tt.mod:
         #12dim
@@ -140,41 +141,44 @@ def rollout_wrapper(dic_exp_conf, dic_agent_conf, dic_traffic_env_conf, dic_path
 
 
 
-def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, onemodel):
 
-    # main(args.memo, args.env, args.road_net, args.gui, args.volume, args.ratio, args.mod, args.cnt, args.gen)
+def main(path, mod, cnt, gen, all, workers, onemodel):
+# def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, onemodel):
+
     #Jinan_3_4
-    NUM_COL = int(road_net.split('_')[0])
-    NUM_ROW = int(road_net.split('_')[1])
+    memo = path.split('/')[0]
+    traffic_file = path[:-1].split('/')[-1]
+    _, NUM_COL, NUM_ROW, volume, suffix = traffic_file.split('.')[0].split('_')
+    NUM_ROW = int(NUM_ROW)
+    NUM_COL = int(NUM_COL)
     num_intersections = NUM_ROW * NUM_COL
     print('num_intersections:', num_intersections)
 
+    # if r_all:
+    #     traffic_file_list = ["anon_"+road_net+"_%d_%s" %(v,suffix) for v in range(100,400,100)]
+    # else:
+    #     traffic_file_list=["anon_{0}_{1}_{2}".format(road_net, volume, suffix)]
 
-    if r_all:
-        traffic_file_list = ["anon_"+road_net+"_%d_%s" %(v,suffix) for v in range(100,400,100)]
-    else:
-        traffic_file_list=["anon_{0}_{1}_{2}".format(road_net, volume, suffix)]
 
-
-    traffic_file_list = [i+ ".json" for i in traffic_file_list ]
-
+    # traffic_file_list = [i+ ".json" for i in traffic_file_list ]
+    traffic_file_list = []
+    traffic_file_list.append(traffic_file)
     process_list = []
     n_workers = workers     #len(traffic_file_list)
     global multi_process
-    multi_process = n_workers > 1
+    multi_process = True
 
     global PRETRAIN
     global NUM_ROUNDS
     global EARLY_STOP
+    roadnet_file = [rf.name for rf in (Path('records') / path).rglob('roadnet*')][0]
+
     for traffic_file in traffic_file_list:
         dic_exp_conf_extra = {
-
             "RUN_COUNTS": cnt,
             "MODEL_NAME": mod,
             "TRAFFIC_FILE": [traffic_file], # here: change to multi_traffic
-
-            "ROADNET_FILE": "roadnet_{0}.json".format(road_net),
-
+            "ROADNET_FILE": roadnet_file,
             "NUM_ROUNDS": NUM_ROUNDS,
             "NUM_GENERATORS": gen,
 
@@ -200,8 +204,6 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             "MAX_MEMORY_LEN": 10000,
             "UPDATE_Q_BAR_EVERY_C_ROUND": False,
             "UPDATE_Q_BAR_FREQ": 5,
-            # network
-
             "N_LAYER": 2,
             "TRAFFIC_FILE": traffic_file,
         }
@@ -219,12 +221,12 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
             "NUM_INTERSECTIONS": num_intersections,
             "ACTION_PATTERN": "switch",
             "MEASURE_TIME": 5,
-            "IF_GUI": gui,
+            "IF_GUI": False,
             "DEBUG": False,
             "TOP_K_ADJACENCY": TOP_K_ADJACENCY,
             "ADJACENCY_BY_CONNECTION_OR_GEO": ADJACENCY_BY_CONNECTION_OR_GEO,
             "TOP_K_ADJACENCY_LANE": TOP_K_ADJACENCY_LANE,
-            "BINARY_PHASE_EXPANSION": True,
+            "BINARY_PHASE_EXPANSION": False,
             "FAST_COMPUTE": False,
             "EMIT": True,
 
@@ -239,7 +241,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
 
             "TRAFFIC_FILE": traffic_file,
             "VOLUME": volume,
-            "ROADNET_FILE": "roadnet_{0}.json".format(road_net),
+            "ROADNET_FILE": roadnet_file,
 
             "phase_expansion": {
                 1: [0, 1, 0, 1, 0, 0, 0, 0],
@@ -260,12 +262,12 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
 
             "LIST_STATE_FEATURE": [
                 "cur_phase",
-                # "time_this_phase",
+                "time_this_phase",
                 # "vehicle_position_img",
                 # "vehicle_speed_img",
                 # "vehicle_acceleration_img",
                 # "vehicle_waiting_time_img",
-                "lane_num_vehicle",
+                # "lane_num_vehicle",
                 # "lane_num_vehicle_been_stopped_thres01",
                 # "lane_num_vehicle_been_stopped_thres1",
                 # "lane_queue_length",
@@ -276,6 +278,7 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
                 # "coming_vehicle",
                 # "leaving_vehicle",
                 # "pressure"
+                "delay",
 
                 # "adjacency_matrix",
                 # "lane_queue_length",
@@ -397,7 +400,9 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
         if mod in ['CoLight','GCN','SimpleDQNOne']:
             dic_traffic_env_conf_extra["NUM_AGENTS"] = 1
             dic_traffic_env_conf_extra['ONE_MODEL'] = False
-            if "adjacency_matrix" not in dic_traffic_env_conf_extra['LIST_STATE_FEATURE'] and \
+            if mod in ['CoLight']  and "adjacency_matrix" not in dic_traffic_env_conf_extra['LIST_STATE_FEATURE']:
+                dic_traffic_env_conf_extra['LIST_STATE_FEATURE'].append("adjacency_matrix")
+            elif "adjacency_matrix" not in dic_traffic_env_conf_extra['LIST_STATE_FEATURE'] and \
                 "adjacency_matrix_lane" not in dic_traffic_env_conf_extra['LIST_STATE_FEATURE'] and \
                 mod not in ['SimpleDQNOne']:
                 dic_traffic_env_conf_extra['LIST_STATE_FEATURE'].append("adjacency_matrix")
@@ -443,12 +448,25 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
 
 
         print(traffic_file)
-        prefix_intersections = str(road_net)
-        dic_path_extra = {
-            "PATH_TO_MODEL": os.path.join("model", memo, traffic_file + "_" + time.strftime('%m_%d_%H_%M_%S', time.localtime(time.time()))),
-            "PATH_TO_WORK_DIRECTORY": os.path.join("records", memo, traffic_file + "_" + time.strftime('%m_%d_%H_%M_%S', time.localtime(time.time()))),
+        path_to_model = Path('model') / path
+        src_to_work = Path('records') / path
+        dst_to_work = Path('records') / path / 'test'
+        dst_to_work.mkdir(exist_ok=True)
+        # files to copy
+        # Not a good solution but prevents files being re-written
+        # Move files
+        filenames = ('agent.conf', 'anon_1_3_lisbon_uniform.json',
+            'cityflow.config', 'exp.conf', 'roadnet_1_3.json')
+        for filename in filenames:
+            src = src_to_work / filename
+            dst = dst_to_work / filename
+            shutil.copy(str(src), str(dst))
 
-            "PATH_TO_DATA": os.path.join("data", template, prefix_intersections),
+        dic_path_extra = {
+            "PATH_TO_MODEL": path_to_model.as_posix(),
+            "PATH_TO_WORK_DIRECTORY": dst_to_work.as_posix(),
+
+            "PATH_TO_DATA": os.path.join("data", template, roadnet_file),
             "PATH_TO_PRETRAIN_MODEL": os.path.join("model", "initial", traffic_file),
             "PATH_TO_PRETRAIN_WORK_DIRECTORY": os.path.join("records", "initial", traffic_file),
             "PATH_TO_ERROR": os.path.join("errors", memo)
@@ -495,13 +513,12 @@ def main(memo, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, one
 
 if __name__ == "__main__":
     args = parse_args()
-    #memo = "multi_phase/optimal_search_new/new_headway_anon"
+
+    gen = len([ge for ge in (Path('model') / args.path).rglob('generator*')])
 
     os.environ["CUDA_VISIBLE_DEVICES"] = args.visible_gpu
 
-    main(args.memo, args.road_net, args.gui, args.volume,
-         args.suffix, args.mod, args.cnt, args.gen, args.all, args.workers,
-         args.onemodel)
+    main(args.path, args.mod, args.cnt, gen, args.all, args.workers, args.onemodel)
 
 
 

@@ -1,13 +1,10 @@
-import numpy as np
-import os
-import pickle
-from agent import Agent
 import random
 import time
-"""
-Model for CoLight in paper "CoLight: Learning Network-level Cooperation for Traffic Signal
-Control", in submission.
-"""
+import os
+import pickle
+from pathlib import Path
+
+import numpy as np
 import keras
 from keras import backend as K
 from keras.optimizers import Adam, RMSprop
@@ -20,6 +17,11 @@ from keras.utils import np_utils,to_categorical
 from keras.engine.topology import Layer
 from keras.callbacks import EarlyStopping, TensorBoard
 
+from agent import Agent
+"""
+Model for CoLight in paper "CoLight: Learning Network-level Cooperation for Traffic Signal
+Control", in submission.
+"""
 
 class RepeatVector3D(Layer):
     def __init__(self,times,**kwargs):
@@ -50,7 +52,8 @@ class CoLightAgent(Agent):
         bar_round=None,
         intersection=None,
         intersection_id="0",
-        cnt_gen=None
+        cnt_gen=None,
+        stop=False,
         ):
         """
         1. compute the (dynamic) static Adjacency matrix, compute for each state
@@ -74,6 +77,7 @@ class CoLightAgent(Agent):
         self.seed = dic_traffic_env_conf['SEED']
         self.cnt_gen = cnt_gen
         self.cnt_round = cnt_round
+        self.stop = stop
 
 
         random.seed(self.seed)
@@ -86,8 +90,15 @@ class CoLightAgent(Agent):
         self.num_lanes = np.sum(np.array(list(self.dic_traffic_env_conf["LANE_NUM"].values())))
         self.len_feature=self.compute_len_feature()
         self.memory = self.build_memory()
-
-        if cnt_round == 0:
+        # Model is stopped
+        # use that option for rollouts.
+        if stop:
+            # load model
+            load_path = Path(self.dic_path["PATH_TO_MODEL"])
+            w_path = load_path / f'generator_{cnt_gen}'
+            filename = 'round_79_inter_0'
+            self.load_network(filename, w_path)
+        elif cnt_round == 0:
             # initialization
             self.q_network = self.build_network()
             if os.listdir(self.dic_path["PATH_TO_MODEL"]):
@@ -369,6 +380,7 @@ class CoLightAgent(Agent):
         return np.reshape(stacked_features,[batch_size,self.num_agents,-1])
 
     def _get_epsilon(self, step_num):
+        if self.stop: return 0
         # alias variables
         ei, ef = self.dic_agent_conf['EPSILON_INIT'], self.dic_agent_conf['EPSILON_FINAL']
         et = self.dic_agent_conf['EPSILON_SCHEDULE_TIMESTEPS']
@@ -416,7 +428,7 @@ class CoLightAgent(Agent):
         _action=[]
         _reward=[]
 
-        for i in range(len(sample_slice)):  
+        for i in range(len(sample_slice)):
             _state.append([])
             _next_state.append([])
             _action.append([])
@@ -430,7 +442,7 @@ class CoLightAgent(Agent):
 
 
         #target: [#agents,#samples,#num_actions]    
-        _features,_adjs,q_values,_=self.action_att_predict(_state)   
+        _features,_adjs,q_values,_=self.action_att_predict(_state)
         _next_features,_next_adjs,_,attention= self.action_att_predict(_next_state)
         #target_q_values:[batch,agent,action]
         _,_,target_q_values,_= self.action_att_predict(

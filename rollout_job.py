@@ -1,8 +1,10 @@
+from pathlib import Path
+from copy import deepcopy
 import json
 import os
 import shutil
 import xml.etree.ElementTree as ET
-from generator import Generator
+from roller import Roller
 from construct_sample import ConstructSample
 from multiprocessing import Process, Pool, Manager
 import random
@@ -76,9 +78,9 @@ class RolloutJob:
         self.dic_path = dic_path
 
         # do file operations
-        self._path_check()
-        self._copy_conf_file()
-        self._copy_anon_file()
+        # self._path_check()
+        # self._copy_conf_file()
+        # self._copy_anon_file()
         # test_duration
         self.test_duration = []
 
@@ -129,9 +131,10 @@ class RolloutJob:
 
 
 
-    def generator_wrapper(self, cnt_round, cnt_gen, dic_path, dic_exp_conf, dic_agent_conf, dic_traffic_env_conf,
-                          best_round=None):
-        generator = Generator(cnt_round=cnt_round,
+    def roller_wrapper(self, cnt_round, cnt_gen, dic_path, dic_exp_conf,
+                          dic_agent_conf, dic_traffic_env_conf, best_round=None):
+
+        roller = Roller(cnt_round=cnt_round,
                               cnt_gen=cnt_gen,
                               dic_path=dic_path,
                               dic_exp_conf=dic_exp_conf,
@@ -139,9 +142,9 @@ class RolloutJob:
                               dic_traffic_env_conf=dic_traffic_env_conf,
                               best_round=best_round
                               )
-        print("make generator")
-        generator.generate()
-        print("generator_wrapper end")
+        print("make roller")
+        roller.roll()
+        print("roller_wrapper end")
         return
 
     def downsample(self, path_to_log, i):
@@ -178,38 +181,31 @@ class RolloutJob:
     def run(self, multi_process=False):
 
         best_round, bar_round = None, None
+        path_to_work = Path(self.dic_path["PATH_TO_WORK_DIRECTORY"]) / "running_time.csv"
 
-        f_time = open(os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"],"running_time.csv"),"w")
-        f_time.write("generator_time\tmaking_samples_time\tupdate_network_time\ttest_evaluation_times\tall_times\n")
-        f_time.close()
-
-        if self.dic_exp_conf["PRETRAIN"]:
-            if os.listdir(self.dic_path["PATH_TO_PRETRAIN_MODEL"]):
-                for i in range(self.dic_traffic_env_conf["NUM_AGENTS"]):
-                    #TODO: only suitable for CoLight
-                    #TODO: Choose the larger
-                    shutil.copy(os.path.join(self.dic_path["PATH_TO_PRETRAIN_MODEL"],
-                                            "round_99_inter_%d.h5" % i),
-                                os.path.join(self.dic_path["PATH_TO_MODEL"], "round_0_inter_%d.h5"%i))
+        with open(path_to_work,"w") as f:
+            f.write("generator_time\tmaking_samples_time\tupdate_network_time\ttest_evaluation_times\tall_times\n")
 
         self.dic_exp_conf["PRETRAIN"] = False
         self.dic_exp_conf["AGGREGATE"] = False
 
-        # trainf
+        root_path = Path(self.dic_path["PATH_TO_MODEL"])
         for cnt_round in range(self.dic_exp_conf["NUM_ROUNDS"]):
             print("round %d starts" % cnt_round)
             round_start_time = time.time()
-
             process_list = []
 
             print("==============  generator =============")
             generator_start_time = time.time()
             if multi_process:
                 for cnt_gen in range(self.dic_exp_conf["NUM_GENERATORS"]):
-                    p = Process(target=self.generator_wrapper,
-                                args=(cnt_round, cnt_gen, self.dic_path, self.dic_exp_conf,
-                                      self.dic_agent_conf, self.dic_traffic_env_conf, best_round)
-                                )
+                    # For each generator -- fetch a path.
+                    p = Process(
+                        target=self.roller_wrapper,
+                        args=(cnt_round, cnt_gen, self.dic_path,
+                              self.dic_exp_conf, self.dic_agent_conf,
+                              self.dic_traffic_env_conf, best_round)
+                    )
                     print("before p")
                     p.start()
                     print("end p")
@@ -223,7 +219,8 @@ class RolloutJob:
                 print("end join")
             else:
                 for cnt_gen in range(self.dic_exp_conf["NUM_GENERATORS"]):
-                    self.generator_wrapper(
+                    # For each generator -- fetch a path.
+                    self.roller_wrapper(
                         cnt_round=cnt_round,
                         cnt_gen=cnt_gen,
                         dic_path=self.dic_path,
@@ -232,52 +229,10 @@ class RolloutJob:
                         dic_traffic_env_conf=self.dic_traffic_env_conf,
                         best_round=best_round
                     )
+
+
             generator_end_time = time.time()
             generator_total_time = generator_end_time - generator_start_time
-            print("==============  make samples =============")
-            # make samples and determine which samples are good
-            making_samples_start_time = time.time()
-
-            train_round = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round")
-            if not os.path.exists(train_round):
-                os.makedirs(train_round)
-
-
-            cs = ConstructSample(path_to_samples=train_round, cnt_round=cnt_round,
-                                 dic_traffic_env_conf=self.dic_traffic_env_conf)
-            cs.make_reward_for_system()
-
-
-            if not self.dic_exp_conf["DEBUG"]:
-                for cnt_gen in range(self.dic_exp_conf["NUM_GENERATORS"]):
-                    path_to_log = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round",
-                                               "round_" + str(cnt_round), "generator_" + str(cnt_gen))
-                    try:
-                        self.downsample_for_system(path_to_log,self.dic_traffic_env_conf)
-                    except Exception as e:
-                        print("----------------------------")
-                        print("Error occurs when downsampling for round {0} generator {1}".format(cnt_round, cnt_gen))
-                        print("traceback.format_exc():\n%s"%traceback.format_exc())
-                        print("----------------------------")
-
-            print('==============  early stopping =============')
-            if self.dic_exp_conf["EARLY_STOP"]:
-                flag = self.early_stopping(self.dic_path, cnt_round)
-                if flag == 1:
-                    print("early stopping!")
-                    print("training ends at round %s" % cnt_round)
-                    break
-
-
-                # downsample
-                if not self.dic_exp_conf["DEBUG"]:
-                    path_to_log = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "test_round",
-                                               "round_" + str(cnt_round))
-                    self.downsample_for_system(path_to_log, self.dic_traffic_env_conf)
-            else:
-                best_round = None
-
-            print("best_round: ", best_round)
 
             print("Generator time: ",generator_total_time)
             print("round {0} ends, total_time: {1}".format(cnt_round, time.time()-round_start_time))
