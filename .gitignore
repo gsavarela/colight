@@ -1,1 +1,8 @@
 .idea/*
+*__pycache__/*
+data/Lisbon/
+errors/
+model/
+records/
+summary/
+temp.tensorboard/
