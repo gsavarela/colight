@@ -1,3 +1,6 @@
+from pathlib import Path
+import sys
+sys.path.append(Path.cwd().as_posix())
 import config
 import copy
 from pipeline import Pipeline
@@ -5,18 +8,17 @@ import os
 import time
 from multiprocessing import Process
 import argparse
-import os
 import matplotlib
 # matplotlib.use('TkAgg')
 
 from script import get_traffic_volume
 
-multi_process = True
+multi_process = False
 TOP_K_ADJACENCY=-1
 TOP_K_ADJACENCY_LANE=-1
 PRETRAIN=False
-NUM_ROUNDS=100
-EARLY_STOP=False 
+NUM_ROUNDS=5
+EARLY_STOP=False
 NEIGHBOR=False
 SAVEREPLAY=False
 ADJACENCY_BY_CONNECTION_OR_GEO=False
@@ -47,7 +49,7 @@ def parse_args():
     global TOP_K_ADJACENCY_LANE
     TOP_K_ADJACENCY_LANE=5
     global NUM_ROUNDS
-    NUM_ROUNDS=100
+    NUM_ROUNDS=5
     global EARLY_STOP
     EARLY_STOP=False
     global NEIGHBOR
@@ -164,7 +166,7 @@ def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers
 
     process_list = []
     n_workers = workers     #len(traffic_file_list)
-    multi_process = True
+    multi_process = False
 
     global PRETRAIN
     global NUM_ROUNDS
