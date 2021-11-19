@@ -17,8 +17,8 @@ multi_process = True
 TOP_K_ADJACENCY=-1
 TOP_K_ADJACENCY_LANE=-1
 PRETRAIN=False
-NUM_ROUNDS=5
-EARLY_STOP=False
+NUM_ROUNDS=100
+EARLY_STOP=False 
 NEIGHBOR=False
 SAVEREPLAY=False
 ADJACENCY_BY_CONNECTION_OR_GEO=False
@@ -28,7 +28,7 @@ ANON_PHASE_REPRE=[]
 def parse_args():
     parser = argparse.ArgumentParser()
     # The file folder to create/log in
-    parser.add_argument("--memo", type=str, default='0515_afternoon_Colight_6_6_bi')#1_3,2_2,3_3,4_4
+    parser.add_argument("--memo", type=str, default='1119_Colight_6_6_bi')#1_3,2_2,3_3,4_4
     parser.add_argument("--env", type=int, default=1) #env=1 means you will run CityFlow
     parser.add_argument("--gui", type=bool, default=False)
     parser.add_argument("--road_net", type=str, default='6_6')#'1_2') # which road net you are going to run
@@ -49,7 +49,7 @@ def parse_args():
     global TOP_K_ADJACENCY_LANE
     TOP_K_ADJACENCY_LANE=5
     global NUM_ROUNDS
-    NUM_ROUNDS=5
+    NUM_ROUNDS=100
     global EARLY_STOP
     EARLY_STOP=False
     global NEIGHBOR
