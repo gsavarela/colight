@@ -10,10 +10,10 @@ import pandas as pd
 import os
 import cityflow as engine
 import time
-import threading
-from multiprocessing import Process, Pool
-from script import get_traffic_volume
+from multiprocessing import Process
 from copy import deepcopy
+from collections import defaultdict
+from pathlib import Path
 
 class RoadNet:
 
@@ -777,6 +777,8 @@ class AnonEnv:
         self.list_inter_log = None
         self.list_lanes = None
         self.system_states = None
+        self.info_dict = defaultdict(list)
+        self.emission = []
         self.feature_name_for_neighbor = self._reduce_duplicates(self.dic_traffic_env_conf["LIST_STATE_FEATURE"])
 
         # check min action time
@@ -790,6 +792,21 @@ class AnonEnv:
             path_to_log_file = os.path.join(self.path_to_log, "inter_{0}.pkl".format(inter_ind))
             f = open(path_to_log_file, "wb")
             f.close()
+
+        # TODO: validate
+        # Load previous information dict -- if exists
+        self.info_log_path = Path(self.path_to_work_directory)
+        if ('train_round' in Path(self.path_to_log).as_posix()):
+            self.info_log_path = self.info_log_path / 'train_logs'
+        else:
+            self.info_log_path = self.info_log_path / 'rollout_logs'
+        self.info_log_path.mkdir(exist_ok=True)
+        self.info_log_path = self.info_log_path  / Path(self.path_to_log).stem
+        if (self.info_log_path / 'train_log.json').exists():
+            with (self.info_log_path / 'train_log.json').open('r') as f:
+                self.info_dict = json.load(f)
+        else:
+            self.info_log_path.mkdir(exist_ok=True)
 
     def reset(self):
 
@@ -894,6 +911,8 @@ class AnonEnv:
         return state
 
     def step(self, action):
+        # Collect info dict, before _inner_step
+        self._update_info_dict(action, self.get_feature())
         step_start_time = time.time()
         list_action_in_sec = [action]
         list_action_in_sec_display = [action]
@@ -985,6 +1004,8 @@ class AnonEnv:
                               "get_vehicle_distance": self.eng.get_vehicle_distance()
                               }
 
+
+        if self.dic_traffic_env_conf['EMIT']:  self._update_emission()
         # print("Get system state time: ", time.time()-system_state_start_time)
 
         if self.dic_traffic_env_conf['DEBUG']:
@@ -1020,22 +1041,65 @@ class AnonEnv:
         # self.log_first_vehicle()
         #self.log_phase()
 
-    def load_roadnet(self, roadnetFile=None):
-        print("Start load roadnet")
-        start_time = time.time()
-        if not roadnetFile:
-            roadnetFile = "roadnet_1_1.json"
-        #print("/n/n", os.path.join(self.path_to_work_directory, roadnetFile))
-        self.eng.load_roadnet(os.path.join(self.path_to_work_directory, roadnetFile))
-        print("successfully load roadnet:{0}, time: {1}".format(roadnetFile,time.time()-start_time))
+    def _update_info_dict(self, actions, states):
+        """Gets information dict."""
+        self.info_dict['actions'].append({
+            k: int(v) for k, v in zip(self.id_to_index.keys(), actions)
+        })
+        self.info_dict['vehicles'].append(sum(
+            len(v) for v in self.system_states['get_lane_vehicles'].values()
+        ))
+        self.info_dict['velocities'].append(sum(
+            v for v in self.system_states['get_vehicle_speed'].values()
+        ))
+        if self.info_dict['vehicles'][-1] > 0:
+            self.info_dict['velocities'][-1] /=  self.info_dict['vehicles'][-1]
+        self.info_dict['states'].append(
+            self._build_states(states)
+        )
+        self.info_dict['rewards'].append({
+            k: -sum(v[2:]) for k, v in self.info_dict['states'][-1].items()
+        })
+        self.info_dict['timestep'].append(self.get_current_time())
 
-    def load_flow(self, flowFile=None):
-        print("Start load flowFile")
-        start_time = time.time()
-        if not flowFile:
-            flowFile = "flow_1_1.json"
-        self.eng.load_flow(os.path.join(self.path_to_work_directory, flowFile))
-        print("successfully load flowFile: {0}, time: {1}".format(flowFile, time.time()-start_time))
+    def _update_emission(self):
+        """Builds sumo like emission file"""
+        timestep = self.get_current_time()
+        for laneid, vehids in self.system_states['get_lane_vehicles'].items():
+            for vehid in vehids:
+                vd  = self.eng.get_vehicle_info(vehicle_id=vehid)
+                emission_dict = {
+                    'time': timestep,
+                    'id': vehid,
+                    'lane': laneid,
+                    'pos': float(vd['distance']),
+                    'route': simple_hash(vd['route']),
+                    'speed': float(vd['speed']),
+                    'type': 'human',
+                    'x': 0,
+                    'y': 0
+                }
+                self.emission.append(emission_dict)
+
+    # TODO: Process the aggregate state neural-network. 
+    # Before feeding to the MLP.
+    def _build_states(self, features):
+        ret = {}
+        for i, itr in enumerate(self.list_intersection):
+            data = features[i]
+            vehicles = data['lane_num_vehicle']
+            action = self.info_dict['actions'][-1][itr.inter_name]
+            active_phase = \
+                int(itr.previous_phase_index if action == 1 else itr.current_phase_index) - 1
+            # active phase id, current time.
+            ret[itr.inter_name] = (active_phase, itr.current_phase_duration)
+
+            # aggregation of phase data.
+            aggr = tuple([sum([vehicles[x] for x, y in enumerate(indices) if y == 1])
+                 for indices in itr.list_phases.values()])
+            ret[itr.inter_name] += aggr
+        return ret
+
 
     def _check_episode_done(self, list_state):
 
@@ -1101,6 +1165,15 @@ class AnonEnv:
             f = open(path_to_log_file, "wb")
             pickle.dump(self.list_inter_log[inter_ind], f)
             f.close()
+
+    def info_log(self):
+        info_log_path = Path(self.info_log_path) / 'train_log.json'
+        with info_log_path.open('w') as f: json.dump(self.info_dict, f)
+
+    def emission_log(self):
+        if self.dic_traffic_env_conf['EMIT']:
+            emission_log_path = Path(self.info_log_path) / 'emission_log.json'
+            with emission_log_path.open('w') as f: json.dump(self.emission, f)
 
     def bulk_log_multi_process(self, batch_size=100):
         assert len(self.list_intersection) == len(self.list_inter_log)

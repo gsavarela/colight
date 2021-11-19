@@ -124,6 +124,7 @@ class Generator:
         print("start logging")
         self.env.bulk_log_multi_process()
         log_time = time.time() - log_start_time
+        self.env.info_log()
 
         self.env.end_sumo()
         print("reset_env_time: ", reset_env_time)

@@ -13,7 +13,7 @@ import matplotlib
 
 from script import get_traffic_volume
 
-multi_process = False
+multi_process = True
 TOP_K_ADJACENCY=-1
 TOP_K_ADJACENCY_LANE=-1
 PRETRAIN=False
@@ -94,7 +94,6 @@ def parse_args():
         }
     print('agent_name:%s',tt.mod)
     print('ANON_PHASE_REPRE:',ANON_PHASE_REPRE)
-    
 
     return parser.parse_args()
 
@@ -166,7 +165,7 @@ def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers
 
     process_list = []
     n_workers = workers     #len(traffic_file_list)
-    multi_process = False
+    multi_process = True
 
     global PRETRAIN
     global NUM_ROUNDS
@@ -228,7 +227,8 @@ def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers
             "TOP_K_ADJACENCY_LANE": TOP_K_ADJACENCY_LANE,
             "SIMULATOR_TYPE": ENVIRONMENT,
             "BINARY_PHASE_EXPANSION": True,
-            "FAST_COMPUTE": True,
+            "FAST_COMPUTE": False,
+            "EMIT": False,
 
             "NEIGHBOR": NEIGHBOR,
             "MODEL_NAME": mod,
