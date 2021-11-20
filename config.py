@@ -7,8 +7,8 @@ from baseline.maxpressure_agent import MaxPressureAgent
 from simple_dqn_agent import SimpleDQNAgent
 from baseline.random_agent import RandomAgent
 from baseline.sotl_agent import SOTLAgent
-from CoLight_agent import CoLightAgent
-# from colight_agent import CoLightAgent
+# from CoLight_agent import CoLightAgent
+from colight_agent import CoLightAgent
 # from gcn_agent import GCNAgent
 from simple_dqn_one_agent import SimpleDQNOneAgent
 from lit_agent import LitAgent
