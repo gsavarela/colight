@@ -15,6 +15,11 @@ from copy import deepcopy
 from collections import defaultdict
 from pathlib import Path
 
+# prevent randomization
+PYTHONHASHSEED=-1
+
+def simple_hash(x): return hash(x) % (11 * 255)
+
 class RoadNet:
 
     def __init__(self, roadnet_file):
@@ -779,6 +784,9 @@ class AnonEnv:
         self.system_states = None
         self.info_dict = defaultdict(list)
         self.emission = []
+        # tracks trip start_time
+        self.trip_times = {}
+
         self.feature_name_for_neighbor = self._reduce_duplicates(self.dic_traffic_env_conf["LIST_STATE_FEATURE"])
 
         # check min action time
@@ -1065,22 +1073,41 @@ class AnonEnv:
     def _update_emission(self):
         """Builds sumo like emission file"""
         timestep = self.get_current_time()
-        for laneid, vehids in self.system_states['get_lane_vehicles'].items():
+        traveling_vehicles = []
+
+        # creates aliases
+        vehicles = self.system_states['get_lane_vehicles']
+        distances = self.system_states['get_vehicle_distance']
+        velocities  = self.system_states['get_vehicle_speed']
+
+        for laneid, vehids in vehicles.items():
+            traveling_vehicles += vehids
             for vehid in vehids:
-                vd  = self.eng.get_vehicle_info(vehicle_id=vehid)
+                dist = distances[vehid]
+                veloc = velocities[vehid]
+                if vehid not in self.trip_times:
+                    self.trip_times[vehid] = timestep
+                start_time = self.trip_times[vehid]
                 emission_dict = {
                     'time': timestep,
                     'id': vehid,
                     'lane': laneid,
-                    'pos': float(vd['distance']),
-                    'route': simple_hash(vd['route']),
-                    'speed': float(vd['speed']),
+                    'pos': float(dist),
+                    'route': simple_hash(f'{vehid}_{start_time}'),
+                    'speed': float(veloc),
                     'type': 'human',
                     'x': 0,
                     'y': 0
                 }
                 self.emission.append(emission_dict)
+        # Remove cars that have arrived
+        # keep only travelling cars.
+        # Assumption: Cars do not spawn onestep latter they arrive.
 
+        trip_set = set(traveling_vehicles)
+        self.trip_times = {
+            k: v  for k, v in self.trip_times.items() if k in trip_set
+        }
     # TODO: Process the aggregate state neural-network. 
     # Before feeding to the MLP.
     def _build_states(self, features):

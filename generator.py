@@ -1,9 +1,11 @@
-import os
-import copy
-from config import DIC_AGENTS, DIC_ENVS
+from pathlib import Path
 import time
 import sys
 from multiprocessing import Process, Pool
+import os
+import copy
+
+from config import DIC_AGENTS, DIC_ENVS
 
 class Generator:
     def __init__(self, cnt_round, cnt_gen, dic_path, dic_exp_conf, dic_agent_conf, dic_traffic_env_conf, best_round=None):
@@ -15,15 +17,23 @@ class Generator:
         self.dic_agent_conf = copy.deepcopy(dic_agent_conf)
         self.dic_traffic_env_conf = dic_traffic_env_conf
         self.agents = [None]*dic_traffic_env_conf['NUM_AGENTS']
+        self.test = self.dic_traffic_env_conf['EMIT'] and \
+            not any(self.dic_exp_conf['LIST_MODEL_NEED_TO_UPDATE'])
 
+        round_dir = 'test_round' if self.test else 'train_round'
         if self.dic_exp_conf["PRETRAIN"]:
-            self.path_to_log = os.path.join(self.dic_path["PATH_TO_PRETRAIN_WORK_DIRECTORY"], "train_round",
-                                            "round_" + str(self.cnt_round), "generator_" + str(self.cnt_gen))
-        else:
-            self.path_to_log = os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round", "round_"+str(self.cnt_round), "generator_"+str(self.cnt_gen))
-        if not os.path.exists(self.path_to_log):
-            os.makedirs(self.path_to_log)  
 
+            round_dir = Path(self.dic_path["PATH_TO_PRETRAIN_WORK_DIRECTORY"]) / round_dir
+        else:
+            round_dir = Path(self.dic_path["PATH_TO_WORK_DIRECTORY"]) / round_dir
+
+        round_dir.mkdir(exist_ok=True)
+        round_dir = round_dir /  f'round_{self.cnt_round}'
+        round_dir.mkdir(exist_ok=True)
+        round_dir = round_dir / f'generator_{self.cnt_gen}'
+        round_dir.mkdir(exist_ok=True)
+
+        self.path_to_log = round_dir.as_posix()
         self.env = DIC_ENVS[dic_traffic_env_conf["SIMULATOR_TYPE"]](
                               path_to_log = self.path_to_log,
                               path_to_work_directory = self.dic_path["PATH_TO_WORK_DIRECTORY"],
@@ -125,6 +135,7 @@ class Generator:
         self.env.bulk_log_multi_process()
         log_time = time.time() - log_start_time
         self.env.info_log()
+        if self.dic_traffic_env_conf['EMIT']: self.env.emission_log()
 
         self.env.end_sumo()
         print("reset_env_time: ", reset_env_time)

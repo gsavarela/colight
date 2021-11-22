@@ -227,7 +227,6 @@ class Pipeline:
             try:
                 logging_data = pickle.load(f_logging_data)
                 subset_data = logging_data[::10]
-                print(subset_data)
                 os.remove(path_to_pkl)
                 with open(path_to_pkl, "wb") as f_subset:
                     try:

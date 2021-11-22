@@ -1,9 +1,11 @@
 from pathlib import Path
 import sys
 sys.path.append(Path.cwd().as_posix())
+
+import shutil
 import config
 import copy
-from pipeline import Pipeline
+from simple_pipeline import Pipeline
 import os
 import time
 from multiprocessing import Process
@@ -13,22 +15,35 @@ import matplotlib
 
 from script import get_traffic_volume
 
-multi_process = True
+multi_process = False
 TOP_K_ADJACENCY=-1
 TOP_K_ADJACENCY_LANE=-1
 PRETRAIN=False
-NUM_ROUNDS=100
-EARLY_STOP=False 
+NUM_ROUNDS=2
+EARLY_STOP=False
 NEIGHBOR=False
 SAVEREPLAY=False
 ADJACENCY_BY_CONNECTION_OR_GEO=False
 hangzhou_archive=True
 ANON_PHASE_REPRE=[]
 
+def str2bool(v, exception=None):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        if exception is None:
+            raise ValueError('boolean value expected')
+        else:
+            raise exception
+
 def parse_args():
     parser = argparse.ArgumentParser()
     # The file folder to create/log in
-    parser.add_argument("--memo", type=str, default='1119_Colight_6_6_bi')#1_3,2_2,3_3,4_4
+    parser.add_argument("--memo", type=str, default='1120_DebuggingTest')#1_3,2_2,3_3,4_4
     parser.add_argument("--env", type=int, default=1) #env=1 means you will run CityFlow
     parser.add_argument("--gui", type=bool, default=False)
     parser.add_argument("--road_net", type=str, default='6_6')#'1_2') # which road net you are going to run
@@ -49,7 +64,7 @@ def parse_args():
     global TOP_K_ADJACENCY_LANE
     TOP_K_ADJACENCY_LANE=5
     global NUM_ROUNDS
-    NUM_ROUNDS=100
+    NUM_ROUNDS=2
     global EARLY_STOP
     EARLY_STOP=False
     global NEIGHBOR
@@ -66,11 +81,12 @@ def parse_args():
     PRETRAIN=False
     parser.add_argument("--mod", type=str, default='CoLight')#SimpleDQN,SimpleDQNOne,GCN,CoLight,Lit
     parser.add_argument("--cnt",type=int, default=3600)#3600
-    parser.add_argument("--gen",type=int, default=4)#4
+    parser.add_argument("--gen",type=int, default=1)#4
 
     parser.add_argument("-all", action="store_true", default=False)
-    parser.add_argument("--workers",type=int, default=4)
+    parser.add_argument("--workers",type=int, default=1)
     parser.add_argument("--onemodel",type=bool, default=False)
+    parser.add_argument("--test",type=str2bool, default=False)
 
     parser.add_argument("--visible_gpu", type=str, default="-1")
     global ANON_PHASE_REPRE
@@ -141,7 +157,7 @@ def pipeline_wrapper(dic_exp_conf, dic_agent_conf, dic_traffic_env_conf, dic_pat
 
 
 
-def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, onemodel):
+def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers, onemodel, test):
 
     # main(args.memo, args.env, args.road_net, args.gui, args.volume, args.ratio, args.mod, args.cnt, args.gen)
     #Jinan_3_4
@@ -165,7 +181,11 @@ def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers
 
     process_list = []
     n_workers = workers     #len(traffic_file_list)
-    multi_process = True
+    multi_process = False
+    emit = False
+
+    if test:
+        emit = True
 
     global PRETRAIN
     global NUM_ROUNDS
@@ -229,7 +249,6 @@ def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers
             "BINARY_PHASE_EXPANSION": True,
             "FAST_COMPUTE": False,
             "EMIT": False,
-
             "NEIGHBOR": NEIGHBOR,
             "MODEL_NAME": mod,
 
@@ -447,9 +466,37 @@ def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers
 
         print(traffic_file)
         prefix_intersections = str(road_net)
+        # TODO: if test find directory
+        if test:
+            search_path = Path('model') / memo
+            paths = (Path('model') / memo).rglob(f'{traffic_file}*')
+            if not any(paths):
+                err = f'{search_path.as_posix()}/{traffic_file}* empty'
+                raise ValueError(err)
+            model_path = [p for p in paths][-1]
+            train_path = Path('records') / memo / model_path.name
+
+            work_path = train_path / 'test'
+            work_path.mkdir(exist_ok=True)
+            # files to copy
+            # Not a good solution but prevents files being re-written
+            # Move files
+            filenames = ('agent.conf', traffic_file,
+                'cityflow.config', 'exp.conf',  f"roadnet_{road_net}.json")
+
+            for filename in filenames:
+                src = train_path / filename
+                dst = work_path / filename
+                shutil.copy(str(src), str(dst))
+
+        else:
+            timestamp = time.strftime('%m_%d_%H_%M_%S', time.localtime(time.time()))
+            model_path = Path("model") / memo / f'{traffic_file}_{timestamp}'
+            work_path = Path("records") / memo / f'{traffic_file}_{timestamp}'
+
         dic_path_extra = {
-            "PATH_TO_MODEL": os.path.join("model", memo, traffic_file + "_" + time.strftime('%m_%d_%H_%M_%S', time.localtime(time.time()))),
-            "PATH_TO_WORK_DIRECTORY": os.path.join("records", memo, traffic_file + "_" + time.strftime('%m_%d_%H_%M_%S', time.localtime(time.time()))),
+            "PATH_TO_MODEL": model_path.as_posix(),
+            "PATH_TO_WORK_DIRECTORY": work_path.as_posix(),
 
             "PATH_TO_DATA": os.path.join("data", template, prefix_intersections),
             "PATH_TO_PRETRAIN_MODEL": os.path.join("model", "initial", traffic_file),
@@ -466,6 +513,13 @@ def main(memo, env, road_net, gui, volume, suffix, mod, cnt, gen, r_all, workers
         # deploy_dic_agent_conf_all = [deploy_dic_agent_conf for i in range(deploy_dic_traffic_env_conf["NUM_AGENTS"])]
 
         deploy_dic_path = merge(config.DIC_PATH, dic_path_extra)
+
+        if test:
+            deploy_dic_traffic_env_conf['EMIT'] = True
+            deploy_dic_exp_conf['LIST_MODEL_NEED_TO_UPDATE'] = []
+
+            deploy_dic_agent_conf['EPSILON'] = 0
+            deploy_dic_agent_conf['MIN_EPSILON'] = 0
 
         if multi_process:
             ppl = Process(target=pipeline_wrapper,
@@ -505,7 +559,7 @@ if __name__ == "__main__":
 
     main(args.memo, args.env, args.road_net, args.gui, args.volume,
          args.suffix, args.mod, args.cnt, args.gen, args.all, args.workers,
-         args.onemodel)
+         args.onemodel, args.test)
 
 
 
